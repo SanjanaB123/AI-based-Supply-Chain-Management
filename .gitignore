@@ -6,6 +6,8 @@ __pycache__/
 # DATA
 data/
 
+# airflow
+airflow/config/airflow.cfg
 
 # Distribution / packaging
 .Python
