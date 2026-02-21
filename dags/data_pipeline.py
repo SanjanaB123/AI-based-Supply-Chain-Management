@@ -1,6 +1,11 @@
-# Importing dag decorator to create dag
-from airflow.sdk import dag
-from airflow.operators.python import PythonOperator
+# Airflow imports are optional for running tests locally
+try:
+    from airflow.decorators import dag
+    from airflow.operators.python import PythonOperator
+    _AIRFLOW_AVAILABLE = True
+except Exception:
+    _AIRFLOW_AVAILABLE = False
+
 import pandas as pd
 from datetime import datetime
 
@@ -65,24 +70,25 @@ def transform(df, horizon=1, pipeline_version="1.0"):
 
 # data loading
 def load(df):
-    df.to_csv(f"data/processed/rocessed_data_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv", index=False)
+    df.to_csv(f"data/processed/processed_data_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv", index=False)
 
-@dag()
-def data_pipeline():
-    extract_task = PythonOperator(
-        task_id='extract',
-        python_callable=extract,
-        op_kwargs={'file_path': 'data/retail_store_inventory.csv'},
-    )
-    transform_task = PythonOperator(
-        task_id='transform',
-        python_callable=transform,
-        op_kwargs={'df': extract_task.output},
-    )
-    load_task = PythonOperator(
-        task_id='load',
-        python_callable=load,
-        op_kwargs={'df': transform_task.output},
-    )
+if _AIRFLOW_AVAILABLE:
+    @dag()
+    def data_pipeline():
+        extract_task = PythonOperator(
+            task_id='extract',
+            python_callable=extract,
+            op_kwargs={'file_path': 'data/retail_store_inventory.csv'},
+        )
+        transform_task = PythonOperator(
+            task_id='transform',
+            python_callable=transform,
+            op_kwargs={'df': extract_task.output},
+        )
+        load_task = PythonOperator(
+            task_id='load',
+            python_callable=load,
+            op_kwargs={'df': transform_task.output},
+        )
 
-    extract_task >> transform_task >> load_task
+        extract_task >> transform_task >> load_task
