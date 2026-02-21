@@ -1,0 +1,8 @@
+config/
+environment/
+logs/
+plugins/
+.env
+**/__pycache__/
+**/data/ 
+.DS_Store
