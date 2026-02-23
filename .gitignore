@@ -48,3 +48,11 @@ unittests.cfg
 **/data/ 
 .DS_Store
 venv/
+.env
+gcp-key.json
+data/
+config/
+.dvc/
+logs/
+plugins/
+params.yaml
