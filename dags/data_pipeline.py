@@ -45,8 +45,8 @@ EMAIL_RECIPIENTS = os.getenv("EMAIL_RECIPIENTS", "admin@example.com").split(",")
 GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "supply-chain-pipeline")
 
 # ── MongoDB defaults ──────────────────────────────────────────────────────────
-MONGO_URI        = "mongodb://host.docker.internal:27017"
-MONGO_DB         = "supply_chain"
+MONGO_URI = os.getenv("MONGO_URI")
+MONGO_DB = "supply_chain"
 MONGO_COLLECTION = "retail_store_inventory"
 
 # ── Required source columns ───────────────────────────────────────────────────
