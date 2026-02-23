@@ -14,6 +14,7 @@ from airflow.sdk import dag
 from airflow.operators.python import PythonOperator
 from airflow.providers.smtp.operators.smtp import EmailOperator
 from airflow.exceptions import AirflowException
+import subprocess
 
 log = logging.getLogger(__name__)
 
@@ -333,10 +334,56 @@ def supply_chain_pipeline():
         
         return report_path
 
+
     def version_with_dvc(features_path: str, **context):
-        # Placeholder: implement DVC versioning
-        log.info("Versioning with DVC: %s", features_path)
+        dvc_root = Path("/opt/airflow")
+        dvc_config = dvc_root / ".dvc" / "config"
+        creds_path = Path("/opt/airflow/gcp-key.json")
+        bucket_name = os.getenv("GCS_BUCKET_NAME", "").strip()
+
+        def run_cmd(cmd: list[str]) -> str:
+            result = subprocess.run(
+                cmd,
+                cwd=str(dvc_root),
+                text=True,
+                capture_output=True,
+            )
+            if result.returncode != 0:
+                raise AirflowException(
+                    f"Command failed: {' '.join(cmd)}\n"
+                    f"stdout:\n{result.stdout}\n"
+                    f"stderr:\n{result.stderr}"
+                )
+            return result.stdout.strip()
+
+        # Initialize DVC in no-scm mode to avoid git permission/mount issues
+        # in containerized Airflow runtimes.
+        if not dvc_config.exists():
+            init_cmd = ["dvc", "init", "--no-scm"]
+            if (dvc_root / ".dvc").exists():
+                init_cmd.append("-f")
+            run_cmd(init_cmd)
+
+        # dvc add the feature parquet file (creates .dvc tracking file)
+        run_cmd(["dvc", "add", features_path])
+
+        # Auto-configure GCS remote when missing.
+        remotes = run_cmd(["dvc", "remote", "list"])
+        if not remotes and bucket_name and creds_path.exists():
+            run_cmd(["dvc", "remote", "add", "-d", "storage", f"gs://{bucket_name}/dvc"])
+            run_cmd(["dvc", "remote", "modify", "storage", "credentialpath", str(creds_path)])
+            remotes = run_cmd(["dvc", "remote", "list"])
+
+        # Push only if a remote is configured.
+        if remotes:
+            run_cmd(["dvc", "push"])
+            log.info("DVC: tracked and pushed %s", features_path)
+        else:
+            log.warning(
+                "DVC remote not configured. Tracked locally only for %s", features_path
+            )
         return features_path
+
 
     def bias_slicing_report(features_path: str, **context):
         # Import and use the bias detection script
@@ -396,7 +443,7 @@ def supply_chain_pipeline():
     dvc_version_task = PythonOperator(
         task_id="version_with_dvc",
         python_callable=version_with_dvc,
-        op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='validate_schema_quality') }}"},
+        op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
     )
 
     bias_report_task = PythonOperator(
