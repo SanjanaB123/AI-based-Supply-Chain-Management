@@ -1,0 +1,4 @@
+[core]
+    remote = myremote
+['remote "myremote"']
+    url = gs://ai-supply-chain-gcp-bucket/dvc-store

@@ -1,24 +1,17 @@
-# ========================
-# GCP & Credentials
-# ========================
 *.json
 *-key.json
 *service-account*.json
 .env
 credentials/
-
-# ========================
-# DVC
-# ========================
 /data/raw/
 /data/processed/
 /data/features/
+/data/
 *.dvc/tmp
 *.dvc/cache
-
-# ========================
-# Python
-# ========================
+config/
+.dvc/
+.env
 __pycache__/
 *.py[cod]
 *.pyo
@@ -26,56 +19,23 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-
-# ========================
-# Virtual Environment
-# ========================
 ai_supply_chain_venv/
 venv/
 env/
 .venv/
-
-# ========================
-# Jupyter Notebooks
-# ========================
 .ipynb_checkpoints/
 *.ipynb
-
-# ========================
-# MLflow
-# ========================
 mlruns/
 mlflow.db
-
-# ========================
-# MongoDB
-# ========================
 *.bson
 *.mongodump
-
-# ========================
-# VS Code
-# ========================
 .vscode/
 *.code-workspace
-
-# ========================
-# OS Files
-# ========================
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# ========================
-# Logs
-# ========================
 *.log
 logs/
-airflow/logs/
-
-# ========================
-# Airflow
-# ========================
 airflow/logs/
 airflow/plugins/
 airflow.cfg
