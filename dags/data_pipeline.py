@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 from scripts.validate import generate_schema_and_stats
+from scripts.upload_to_gcp import upload_to_gcs
 import pandas as pd
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
@@ -13,6 +14,7 @@ from airflow.sdk import dag
 from airflow.operators.python import PythonOperator
 from airflow.providers.smtp.operators.smtp import EmailOperator
 from airflow.exceptions import AirflowException
+import subprocess
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +40,9 @@ SPLIT_DIR  = DATA_ROOT / "processed"
 
 # ── Email configuration ───────────────────────────────────────────────────────────
 EMAIL_RECIPIENTS = os.getenv("EMAIL_RECIPIENTS", "admin@example.com").split(",")
+
+# ── GCS configuration ────────────────────────────────────────────────────────
+GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "supply-chain-pipeline")
 
 # ── MongoDB defaults ──────────────────────────────────────────────────────────
 MONGO_URI        = "mongodb://host.docker.internal:27017"
@@ -225,12 +230,20 @@ def transform(raw_path: str, horizon: int = 1, **context) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # LOAD
 # ─────────────────────────────────────────────────────────────────────────────
-def load(features_path: str, **context) -> None:
+def load(features_path: str, bucket_name: str = GCS_BUCKET_NAME, **context) -> None:
     """
-    Loads the processed features parquet file. No train/val/test split is performed here.
+    Uploads the processed features Parquet file to Google Cloud Storage.
     """
-    df = pd.read_parquet(features_path)
-    log.info("Loaded features from %s (rows: %d)", features_path, len(df))
+    run_id = context.get("run_id", datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"))
+    destination_blob = f"features/features_{run_id}.parquet"
+
+    log.info("Uploading %s → gs://%s/%s", features_path, bucket_name, destination_blob)
+    upload_to_gcs(
+        file_path=features_path,
+        bucket_name=bucket_name,
+        destination_blob_name=destination_blob,
+    )
+    log.info("Upload complete: gs://%s/%s", bucket_name, destination_blob)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -321,10 +334,56 @@ def supply_chain_pipeline():
         
         return report_path
 
+
     def version_with_dvc(features_path: str, **context):
-        # Placeholder: implement DVC versioning
-        log.info("Versioning with DVC: %s", features_path)
+        dvc_root = Path("/opt/airflow")
+        dvc_config = dvc_root / ".dvc" / "config"
+        creds_path = Path("/opt/airflow/gcp-key.json")
+        bucket_name = os.getenv("GCS_BUCKET_NAME", "").strip()
+
+        def run_cmd(cmd: list[str]) -> str:
+            result = subprocess.run(
+                cmd,
+                cwd=str(dvc_root),
+                text=True,
+                capture_output=True,
+            )
+            if result.returncode != 0:
+                raise AirflowException(
+                    f"Command failed: {' '.join(cmd)}\n"
+                    f"stdout:\n{result.stdout}\n"
+                    f"stderr:\n{result.stderr}"
+                )
+            return result.stdout.strip()
+
+        # Initialize DVC in no-scm mode to avoid git permission/mount issues
+        # in containerized Airflow runtimes.
+        if not dvc_config.exists():
+            init_cmd = ["dvc", "init", "--no-scm"]
+            if (dvc_root / ".dvc").exists():
+                init_cmd.append("-f")
+            run_cmd(init_cmd)
+
+        # dvc add the feature parquet file (creates .dvc tracking file)
+        run_cmd(["dvc", "add", features_path])
+
+        # Auto-configure GCS remote when missing.
+        remotes = run_cmd(["dvc", "remote", "list"])
+        if not remotes and bucket_name and creds_path.exists():
+            run_cmd(["dvc", "remote", "add", "-d", "storage", f"gs://{bucket_name}/dvc"])
+            run_cmd(["dvc", "remote", "modify", "storage", "credentialpath", str(creds_path)])
+            remotes = run_cmd(["dvc", "remote", "list"])
+
+        # Push only if a remote is configured.
+        if remotes:
+            run_cmd(["dvc", "push"])
+            log.info("DVC: tracked and pushed %s", features_path)
+        else:
+            log.warning(
+                "DVC remote not configured. Tracked locally only for %s", features_path
+            )
         return features_path
+
 
     def bias_slicing_report(features_path: str, **context):
         # Import and use the bias detection script
@@ -384,7 +443,7 @@ def supply_chain_pipeline():
     dvc_version_task = PythonOperator(
         task_id="version_with_dvc",
         python_callable=version_with_dvc,
-        op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='validate_schema_quality') }}"},
+        op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
     )
 
     bias_report_task = PythonOperator(
@@ -393,13 +452,22 @@ def supply_chain_pipeline():
         op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
     )
 
-    # Parallelize: extract -> transform -> [schema_stats, anomaly_detect] -> validate -> dvc_version
-    #                                                    \-> bias_report
-    #                                                    \-> anomaly_email_alert (on failure)
+    # Parallelize: extract -> transform -> [schema_stats, anomaly_detect, bias_report]
+    #                                      -> validate -> dvc_version -> load (GCS upload)
+    #                                      -> anomaly_email_alert (on failure)
+    load_task = PythonOperator(
+        task_id="load",
+        python_callable=load,
+        op_kwargs={
+            "features_path": "{{ ti.xcom_pull(task_ids='transform') }}",
+            "bucket_name":   GCS_BUCKET_NAME,
+        },
+    )
+
     extract_task >> transform_task
     transform_task >> [schema_stats_task, anomaly_detect_task, bias_report_task]
     [schema_stats_task, anomaly_detect_task] >> validate_schema_task
-    validate_schema_task >> dvc_version_task
+    validate_schema_task >> dvc_version_task >> load_task
     anomaly_detect_task >> anomaly_email_alert
 
 
