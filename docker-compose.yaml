@@ -59,6 +59,8 @@ x-airflow-common:
     PYTHONPATH: /opt/airflow
     PARAMS_PATH: /opt/airflow/params.yaml
     AIRFLOW__WEBSERVER__BASE_URL: 'http://localhost:8080'
+    GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/gcp-key.json
+    GCS_BUCKET_NAME: ${GCS_BUCKET_NAME:-supply-chain-pipeline}
     # AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
     # AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
     AIRFLOW__CORE__FERNET_KEY: ''
@@ -83,6 +85,7 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/data:/opt/airflow/data
     - ${AIRFLOW_PROJ_DIR:-.}/scripts:/opt/airflow/scripts
     - ${AIRFLOW_PROJ_DIR:-.}/params.yaml:/opt/airflow/params.yaml
+    - ${AIRFLOW_PROJ_DIR:-.}/gcp-key.json:/opt/airflow/gcp-key.json
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     # redis:
