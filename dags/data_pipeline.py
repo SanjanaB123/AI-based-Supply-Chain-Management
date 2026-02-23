@@ -1,33 +1,43 @@
-"""
-supply_chain_pipeline DAG
-─────────────────────────
-Extracts raw inventory data from MongoDB, engineers features,
-splits into train/val/test parquets, and writes metadata.json.
-
-XCom carries only file paths (strings), not DataFrames.
-"""
-
 from __future__ import annotations
-
-import json
+import sys
+import yaml
+import os
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-
+from scripts.validate import generate_schema_and_stats
 import pandas as pd
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
-
 from airflow.sdk import dag
 from airflow.operators.python import PythonOperator
+from airflow.providers.smtp.operators.smtp import EmailOperator
+from airflow.exceptions import AirflowException
 
 log = logging.getLogger(__name__)
 
-# ── Paths ────────────────────────────────────────────────────────────────────
-DATA_ROOT  = Path("/opt/airflow/data")
+
+# ── Config loading ───────────────────────────────────────────────────────────
+PARAMS_PATH = Path(os.getenv("PARAMS_PATH", "params.yaml"))
+if PARAMS_PATH.exists():
+    with open(PARAMS_PATH, "r") as f:
+        params = yaml.safe_load(f)
+else:
+    params = {}
+
+HORIZON = int(os.getenv("HORIZON", params.get("horizon", 1)))
+LAGS = params.get("lags", [1, 7, 14])
+ROLLING_WINDOWS = params.get("rolling_windows", [7, 14, 28])
+ANOMALY_THRESHOLDS = params.get("anomaly_thresholds", {"z_score": 3.0, "iqr": 1.5, "missingness": 0.02, "date_gap_days": 1})
+OUTPUT_BASE_PATH = Path(os.getenv("OUTPUT_BASE_PATH", params.get("output_base_path", "/opt/airflow/data")))
+
+DATA_ROOT  = OUTPUT_BASE_PATH
 RAW_DIR    = DATA_ROOT / "raw"
 FEAT_DIR   = DATA_ROOT / "features"
 SPLIT_DIR  = DATA_ROOT / "processed"
+
+# ── Email configuration ───────────────────────────────────────────────────────────
+EMAIL_RECIPIENTS = os.getenv("EMAIL_RECIPIENTS", "admin@example.com").split(",")
 
 # ── MongoDB defaults ──────────────────────────────────────────────────────────
 MONGO_URI        = "mongodb://host.docker.internal:27017"
@@ -51,6 +61,7 @@ FEATURE_COLS = [
     "Price", "Discount", "Holiday/Promotion",
     "Competitor Pricing", "Weather Condition", "Seasonality",
     "Inventory Level", "Units Ordered",
+    "y_pred_baseline", "sample_weight"
 ]
 META_COLS       = ["as_of_date", "series_id", "horizon", "pipeline_version", "created_at"]
 LABEL_COLS      = ["y"]
@@ -136,8 +147,6 @@ def transform(raw_path: str, horizon: int = 1, **context) -> str:
     df["sales_lag_7"]  = gs.shift(7)
     df["sales_lag_14"] = gs.shift(14)
 
-    # Rolling means — shift(1) prevents seeing today's sales;
-    # min_periods chosen to avoid noisy early estimates without losing too many rows.
     df["sales_roll_mean_7"]  = gs.transform(
         lambda x: x.rolling(7,  min_periods=3).mean().shift(1)
     )
@@ -157,23 +166,53 @@ def transform(raw_path: str, horizon: int = 1, **context) -> str:
     df["dow"]   = df["Date"].dt.dayofweek
     df["month"] = df["Date"].dt.month
 
-    # ── 5. Label: next-step sales ─────────────────────────────────────────────
+    # ── 5. Baseline prediction ─────────────────────────────────────────────────
+    # Use lag_7 for horizon=1, lag_1 for horizon=1 as fallback, lag_7 for horizon=7
+    if horizon == 1:
+        df["y_pred_baseline"] = df["sales_lag_1"].fillna(df["sales_lag_7"])
+    else:
+        df["y_pred_baseline"] = df["sales_lag_7"]
+    
+    # ── 6. Sample weights for bias mitigation ───────────────────────────────────
+    # Calculate inverse frequency weights by Store ID for bias mitigation
+    store_freq = df["Store ID"].value_counts(normalize=True)
+    df["sample_weight"] = df["Store ID"].map(lambda x: 1.0 / max(store_freq.get(x, 0), 1e-6))
+    df["sample_weight"] = df["sample_weight"].clip(0.1, 10.0)  # Prevent extreme values
+
+    # ── 7. Label: next-step sales ─────────────────────────────────────────────
     df["y"] = gs.shift(-horizon)
 
-    # ── 6. Drop rows with missing lag_14 or missing label ────────────────────
+    # ── 8. Drop rows with missing lag_14 or missing label ────────────────────
+    rows_before_drop = len(df)
     df = df.dropna(subset=["sales_lag_14", "y"])
+    rows_dropped = rows_before_drop - len(df)
+    if rows_dropped > 0:
+        log.info("Dropped %d rows due to missing lags or labels (%.1f%%)", 
+                rows_dropped, (rows_dropped / rows_before_drop) * 100)
 
-    # ── 7. MLOps metadata ────────────────────────────────────────────────────
+    # ── 9. MLOps metadata ───────────────────────────────────────────────────
     df["as_of_date"]        = df["Date"]
-    df["series_id"]         = df["Store ID"] + "_" + df["Product ID"]
+    df["series_id"]         = df["Store ID"].astype(str) + "_" + df["Product ID"].astype(str)
     df["horizon"]           = horizon
     df["pipeline_version"]  = PIPELINE_VERSION
     df["created_at"]        = datetime.utcnow().isoformat()
 
+    # ── 10. Enhanced logging ───────────────────────────────────────────────────
+    log.info("Unique series: %d", df["series_id"].nunique())
+    log.info("Date range: %s → %s", df["Date"].min(), df["Date"].max())
+    
+    # Log null percentages for key engineered features
+    key_features = ["sales_lag_1", "sales_lag_7", "sales_lag_14", "sales_roll_mean_7", 
+                    "sales_roll_mean_14", "sales_roll_mean_28", "y_pred_baseline"]
+    for feature in key_features:
+        if feature in df.columns:
+            null_pct = df[feature].isnull().mean() * 100
+            log.info("Feature '%s' null percentage: %.2f%%", feature, null_pct)
+
     df = df[FINAL_COLS].reset_index(drop=True)
     log.info("Feature engineering complete — %d rows, %d columns", len(df), len(df.columns))
 
-    # ── 8. Write features ─────────────────────────────────────────────────────
+    # ── 11. Write features ─────────────────────────────────────────────────────
     FEAT_DIR.mkdir(parents=True, exist_ok=True)
     run_id   = context.get("run_id", datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"))
     out_path = FEAT_DIR / f"features_{run_id}.parquet"
@@ -188,68 +227,10 @@ def transform(raw_path: str, horizon: int = 1, **context) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 def load(features_path: str, **context) -> None:
     """
-    Time-based train / val / test split and artifact export.
-
-    Split boundaries (by as_of_date):
-        train : oldest 70 %
-        val   : next  15 %
-        test  : newest 15 %
-
-    Outputs (under data/processed/<run_id>/):
-        train.parquet
-        val.parquet
-        test.parquet
-        metadata.json
+    Loads the processed features parquet file. No train/val/test split is performed here.
     """
     df = pd.read_parquet(features_path)
-    df["as_of_date"] = pd.to_datetime(df["as_of_date"])
-
-    dates = df["as_of_date"].sort_values().unique()
-    n     = len(dates)
-
-    train_end = dates[int(n * 0.70) - 1]
-    val_end   = dates[int(n * 0.85) - 1]
-
-    train_df = df[df["as_of_date"] <= train_end]
-    val_df   = df[(df["as_of_date"] > train_end) & (df["as_of_date"] <= val_end)]
-    test_df  = df[df["as_of_date"] > val_end]
-
-    log.info(
-        "Split sizes — train: %d | val: %d | test: %d",
-        len(train_df), len(val_df), len(test_df),
-    )
-
-    run_id   = context.get("run_id", datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"))
-    out_dir  = SPLIT_DIR / run_id
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    train_df.to_parquet(out_dir / "train.parquet", index=False)
-    val_df.to_parquet(out_dir   / "val.parquet",   index=False)
-    test_df.to_parquet(out_dir  / "test.parquet",  index=False)
-
-    metadata = {
-        "pipeline_version": PIPELINE_VERSION,
-        "horizon":          int(df["horizon"].iloc[0]),
-        "features":         FEATURE_COLS,
-        "labels":           LABEL_COLS,
-        "split_boundaries": {
-            "train_end": str(train_end.date()),
-            "val_end":   str(val_end.date()),
-            "test_start": str((val_end + pd.Timedelta(days=1)).date()),
-        },
-        "row_counts": {
-            "train": len(train_df),
-            "val":   len(val_df),
-            "test":  len(test_df),
-            "total": len(df),
-        },
-        "created_at": datetime.utcnow().isoformat(),
-        "run_id":     run_id,
-    }
-    with open(out_dir / "metadata.json", "w") as f:
-        json.dump(metadata, f, indent=2)
-
-    log.info("Artifacts written to %s", out_dir)
+    log.info("Loaded features from %s (rows: %d)", features_path, len(df))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -273,6 +254,7 @@ default_args = {
     tags=["supply-chain", "etl", "ml"],
 )
 def supply_chain_pipeline():
+
     extract_task = PythonOperator(
         task_id="extract",
         python_callable=extract,
@@ -289,13 +271,136 @@ def supply_chain_pipeline():
         op_kwargs={"raw_path": "{{ ti.xcom_pull(task_ids='extract') }}"},
     )
 
-    load_task = PythonOperator(
-        task_id="load",
-        python_callable=load,
+
+    def generate_schema_stats(features_path: str, **context):
+        # Call the validate.py script to generate schema and stats
+        sys.path.append(str(Path(__file__).parent.parent / "scripts"))
+        outputs_dir = str(FEAT_DIR / "validation_outputs")
+        result = generate_schema_and_stats(features_path, outputs_dir)
+        log.info("Schema and stats generated at %s", result)
+        return result
+
+    def validate_schema_quality(outputs_dir: str, **context):
+        # Placeholder: implement schema validation
+        log.info("Validating schema quality using outputs in %s", outputs_dir)
+        return outputs_dir
+
+    def detect_anomalies(features_path: str, **context):
+        # Import and use the anomaly detection script
+        sys.path.append(str(Path(__file__).parent.parent / "scripts"))
+        from anomaly import generate_anomaly_report, check_anomaly_thresholds
+        
+        outputs_dir = str(FEAT_DIR / "anomaly_outputs")
+        report_path = generate_anomaly_report(
+            features_path=features_path,
+            output_dir=outputs_dir,
+            missingness_threshold=ANOMALY_THRESHOLDS.get("missingness", 0.02),
+            outlier_z_threshold=ANOMALY_THRESHOLDS.get("z_score", 3.0),
+            date_gap_threshold=ANOMALY_THRESHOLDS.get("date_gap_days", 1)
+        )
+        
+        log.info("Anomaly detection completed. Report saved to %s", report_path)
+        
+        # Check if anomalies exceed acceptable threshold
+        if not check_anomaly_thresholds(report_path, max_anomalies=0):
+            # Load report to get details for error message
+            import json
+            with open(report_path, "r") as f:
+                report = json.load(f)
+            
+            summary = report["summary"]
+            error_msg = (
+                f"Critical anomalies detected: "
+                f"{summary['total_anomaly_types']} total "
+                f"({summary['missingness_anomalies']} missingness, "
+                f"{summary['outlier_anomalies']} outliers, "
+                f"{summary['date_gap_anomalies']} date gaps)"
+            )
+            log.error(error_msg)
+            raise AirflowException(error_msg)
+        
+        return report_path
+
+    def version_with_dvc(features_path: str, **context):
+        # Placeholder: implement DVC versioning
+        log.info("Versioning with DVC: %s", features_path)
+        return features_path
+
+    def bias_slicing_report(features_path: str, **context):
+        # Import and use the bias detection script
+        sys.path.append(str(Path(__file__).parent.parent / "scripts"))
+        from bias import generate_bias_report
+        
+        outputs_dir = str(FEAT_DIR / "bias_outputs")
+        report_path = generate_bias_report(
+            features_path=features_path,
+            output_dir=outputs_dir,
+            slice_features=["Holiday/Promotion", "Weather Condition", "Seasonality", "Store ID", "Product ID"]
+        )
+        log.info("Bias analysis completed. Report saved to %s", report_path)
+        return report_path
+
+
+    schema_stats_task = PythonOperator(
+        task_id="generate_schema_stats",
+        python_callable=generate_schema_stats,
         op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
     )
 
-    extract_task >> transform_task >> load_task
+    anomaly_detect_task = PythonOperator(
+        task_id="detect_anomalies",
+        python_callable=detect_anomalies,
+        op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
+    )
+
+    # Email alert task for anomaly failures
+    anomaly_email_alert = EmailOperator(
+        task_id="anomaly_email_alert",
+        to=EMAIL_RECIPIENTS,
+        subject="Supply Chain Pipeline - Anomaly Alert",
+        html_content="""
+        <h2>Anomaly Detection Alert</h2>
+        <p>The supply chain data pipeline has detected critical anomalies in the processed data.</p>
+        <p><strong>Details:</strong></p>
+        <ul>
+            <li>Pipeline: {{ dag.dag_id }}</li>
+            <li>Execution Date: {{ ds }}</li>
+            <li>Task: detect_anomalies</li>
+            <li>Anomaly Report: {{ ti.xcom_pull(task_ids='detect_anomalies') }}</li>
+        </ul>
+        <p>Please review the anomaly report and take appropriate action.</p>
+        <p>Check the Airflow UI for more details: <a href="{{ conf.get('webserver', 'base_url') }}">Airflow Dashboard</a></p>
+        """,
+        trigger_rule="one_failed",  # Only send when anomaly detection fails
+    )
+
+
+    validate_schema_task = PythonOperator(
+        task_id="validate_schema_quality",
+        python_callable=validate_schema_quality,
+        op_kwargs={"outputs_dir": "{{ ti.xcom_pull(task_ids='generate_schema_stats') }}"},
+    )
+
+    dvc_version_task = PythonOperator(
+        task_id="version_with_dvc",
+        python_callable=version_with_dvc,
+        op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='validate_schema_quality') }}"},
+    )
+
+    bias_report_task = PythonOperator(
+        task_id="bias_slicing_report",
+        python_callable=bias_slicing_report,
+        op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
+    )
+
+    # Parallelize: extract -> transform -> [schema_stats, anomaly_detect] -> validate -> dvc_version
+    #                                                    \-> bias_report
+    #                                                    \-> anomaly_email_alert (on failure)
+    extract_task >> transform_task
+    transform_task >> [schema_stats_task, anomaly_detect_task, bias_report_task]
+    [schema_stats_task, anomaly_detect_task] >> validate_schema_task
+    validate_schema_task >> dvc_version_task
+    anomaly_detect_task >> anomaly_email_alert
 
 
 dag = supply_chain_pipeline()
