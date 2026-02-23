@@ -190,7 +190,14 @@ def transform(raw_path: str, horizon: int = 1, **context) -> str:
         log.info("Dropped %d rows due to missing lags or labels (%.1f%%)", 
                 rows_dropped, (rows_dropped / rows_before_drop) * 100)
 
-    # ── 9. Enhanced logging ───────────────────────────────────────────────────
+    # ── 9. MLOps metadata ───────────────────────────────────────────────────
+    df["as_of_date"]        = df["Date"]
+    df["series_id"]         = df["Store ID"].astype(str) + "_" + df["Product ID"].astype(str)
+    df["horizon"]           = horizon
+    df["pipeline_version"]  = PIPELINE_VERSION
+    df["created_at"]        = datetime.utcnow().isoformat()
+
+    # ── 10. Enhanced logging ───────────────────────────────────────────────────
     log.info("Unique series: %d", df["series_id"].nunique())
     log.info("Date range: %s → %s", df["Date"].min(), df["Date"].max())
     
@@ -201,13 +208,6 @@ def transform(raw_path: str, horizon: int = 1, **context) -> str:
         if feature in df.columns:
             null_pct = df[feature].isnull().mean() * 100
             log.info("Feature '%s' null percentage: %.2f%%", feature, null_pct)
-
-    # ── 10. MLOps metadata ───────────────────────────────────────────────────
-    df["as_of_date"]        = df["Date"]
-    df["series_id"]         = df["Store ID"] + "_" + df["Product ID"]
-    df["horizon"]           = horizon
-    df["pipeline_version"]  = PIPELINE_VERSION
-    df["created_at"]        = datetime.utcnow().isoformat()
 
     df = df[FINAL_COLS].reset_index(drop=True)
     log.info("Feature engineering complete — %d rows, %d columns", len(df), len(df.columns))
@@ -280,10 +280,10 @@ def supply_chain_pipeline():
         log.info("Schema and stats generated at %s", result)
         return result
 
-    def validate_schema_quality(features_path: str, **context):
+    def validate_schema_quality(outputs_dir: str, **context):
         # Placeholder: implement schema validation
-        log.info("Validating schema quality for %s", features_path)
-        return features_path
+        log.info("Validating schema quality using outputs in %s", outputs_dir)
+        return outputs_dir
 
     def detect_anomalies(features_path: str, **context):
         # Import and use the anomaly detection script
