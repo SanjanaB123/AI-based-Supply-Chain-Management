@@ -72,3 +72,15 @@ desktop.ini
 *.log
 logs/
 airflow/logs/
+
+# ========================
+# Airflow
+# ========================
+airflow/logs/
+airflow/plugins/
+airflow.cfg
+airflow.db
+standalone_admin_password.txt
+unittests.cfg
+/airflow/dags/__pycache__/
+.airflow/
