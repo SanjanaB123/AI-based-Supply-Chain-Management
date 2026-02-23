@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 from scripts.validate import generate_schema_and_stats
+from scripts.upload_to_gcp import upload_to_gcs
 import pandas as pd
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
@@ -38,6 +39,9 @@ SPLIT_DIR  = DATA_ROOT / "processed"
 
 # ── Email configuration ───────────────────────────────────────────────────────────
 EMAIL_RECIPIENTS = os.getenv("EMAIL_RECIPIENTS", "admin@example.com").split(",")
+
+# ── GCS configuration ────────────────────────────────────────────────────────
+GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "supply-chain-pipeline")
 
 # ── MongoDB defaults ──────────────────────────────────────────────────────────
 MONGO_URI        = "mongodb://host.docker.internal:27017"
@@ -225,12 +229,20 @@ def transform(raw_path: str, horizon: int = 1, **context) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # LOAD
 # ─────────────────────────────────────────────────────────────────────────────
-def load(features_path: str, **context) -> None:
+def load(features_path: str, bucket_name: str = GCS_BUCKET_NAME, **context) -> None:
     """
-    Loads the processed features parquet file. No train/val/test split is performed here.
+    Uploads the processed features Parquet file to Google Cloud Storage.
     """
-    df = pd.read_parquet(features_path)
-    log.info("Loaded features from %s (rows: %d)", features_path, len(df))
+    run_id = context.get("run_id", datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"))
+    destination_blob = f"features/features_{run_id}.parquet"
+
+    log.info("Uploading %s → gs://%s/%s", features_path, bucket_name, destination_blob)
+    upload_to_gcs(
+        file_path=features_path,
+        bucket_name=bucket_name,
+        destination_blob_name=destination_blob,
+    )
+    log.info("Upload complete: gs://%s/%s", bucket_name, destination_blob)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -393,13 +405,22 @@ def supply_chain_pipeline():
         op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
     )
 
-    # Parallelize: extract -> transform -> [schema_stats, anomaly_detect] -> validate -> dvc_version
-    #                                                    \-> bias_report
-    #                                                    \-> anomaly_email_alert (on failure)
+    # Parallelize: extract -> transform -> [schema_stats, anomaly_detect, bias_report]
+    #                                      -> validate -> dvc_version -> load (GCS upload)
+    #                                      -> anomaly_email_alert (on failure)
+    load_task = PythonOperator(
+        task_id="load",
+        python_callable=load,
+        op_kwargs={
+            "features_path": "{{ ti.xcom_pull(task_ids='transform') }}",
+            "bucket_name":   GCS_BUCKET_NAME,
+        },
+    )
+
     extract_task >> transform_task
     transform_task >> [schema_stats_task, anomaly_detect_task, bias_report_task]
     [schema_stats_task, anomaly_detect_task] >> validate_schema_task
-    validate_schema_task >> dvc_version_task
+    validate_schema_task >> dvc_version_task >> load_task
     anomaly_detect_task >> anomaly_email_alert
 
 
