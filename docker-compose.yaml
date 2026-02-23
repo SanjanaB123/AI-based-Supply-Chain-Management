@@ -58,6 +58,7 @@ x-airflow-common:
     AIRFLOW__API_AUTH__JWT_SECRET: 'test-key'
     PYTHONPATH: /opt/airflow
     PARAMS_PATH: /opt/airflow/params.yaml
+    MONGO_URI: "${MONGO_URI}"
     AIRFLOW__WEBSERVER__BASE_URL: 'http://localhost:8080'
     GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/gcp-key.json
     GCS_BUCKET_NAME: ${GCS_BUCKET_NAME:-supply-chain-pipeline}
