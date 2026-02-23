@@ -44,3 +44,7 @@ standalone_admin_password.txt
 unittests.cfg
 /airflow/dags/__pycache__/
 .airflow/
+**/__pycache__/
+**/data/ 
+.DS_Store
+venv/
