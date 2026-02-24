@@ -84,7 +84,11 @@ AI-based-Supply-Chain-Management/
 │   ├── bias.py                   # Bias detection and mitigation
 │   ├── upload_to_gcp.py          # GCS upload functionality
 │   └── upload_to_mongo.py        # MongoDB data loading
+├── tests/
+│   ├── README.md                 # Testing guide and coverage details
+│   └── test_data_pipeline.py     # Unit tests for pipeline components
 ├── docker-compose.yaml           # Airflow deployment configuration
+├── run_tests.sh                 # Test runner script
 ├── params.yaml                   # Pipeline parameters and thresholds
 ├── requirements.txt              # Python dependencies
 └── README.md                     # This documentation
@@ -206,6 +210,14 @@ Comprehensive logging throughout the pipeline includes:
 - Error tracking and troubleshooting information
 
 ## Testing & Validation
+
+### Unit Tests
+Comprehensive unit test suite covering all pipeline components:
+- **42 total tests** across extract, transform, load, integration, and edge cases
+- **Test Coverage**: Extract (6), Transform (25), Load (4), Integration (4), Edge Cases (3)
+- **Run Tests**: `./run_tests.sh` or `python3 -m pytest tests/test_data_pipeline.py -v`
+
+**Note**: Testing is currently separate from the DAG to maintain pipeline performance. CI/CD testing via GitHub Actions will be implemented soon to automate test execution on code changes.
 
 ### Schema Validation
 Using Great Expectations, the pipeline validates:
