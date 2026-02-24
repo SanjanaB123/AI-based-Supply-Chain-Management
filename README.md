@@ -84,6 +84,11 @@ AI-based-Supply-Chain-Management/
 │   ├── bias.py                   # Bias detection and mitigation
 │   ├── upload_to_gcp.py          # GCS upload functionality
 │   └── upload_to_mongo.py        # MongoDB data loading
+├── tests/
+│   ├── __init__.py
+│   └── test_scripts.py           # Comprehensive test suite (53 tests)
+├── conftest.py                   # Pytest configuration and dependency mocks
+├── run_tests.sh                  # One-command test runner
 ├── docker-compose.yaml           # Airflow deployment configuration
 ├── params.yaml                   # Pipeline parameters and thresholds
 ├── requirements.txt              # Python dependencies
@@ -206,6 +211,12 @@ Comprehensive logging throughout the pipeline includes:
 - Error tracking and troubleshooting information
 
 ## Testing & Validation
+
+### Running Tests
+```bash
+chmod +x run_tests.sh && ./run_tests.sh
+```
+Run `./run_tests.sh -v` for verbose output or `./run_tests.sh --cov` for a coverage report.
 
 ### Schema Validation
 Using Great Expectations, the pipeline validates:
