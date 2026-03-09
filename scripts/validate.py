@@ -1,9 +1,18 @@
-import great_expectations as ge
 import pandas as pd
 import json
 from pathlib import Path
 
 def generate_schema_and_stats(features_path, output_dir):
+    # Import GE lazily so DAG parsing doesn't fail if the package is missing
+    # at container boot time.
+    try:
+        import great_expectations as ge
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            "Missing dependency 'great_expectations'. Install package "
+            "'great-expectations' in the Airflow image."
+        ) from exc
+
     df = pd.read_parquet(features_path)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)

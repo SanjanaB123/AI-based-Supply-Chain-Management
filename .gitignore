@@ -56,3 +56,4 @@ config/
 logs/
 plugins/
 params.yaml
+gcp-key.json
