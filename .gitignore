@@ -6,3 +6,5 @@ plugins/
 **/__pycache__/
 **/data/ 
 .DS_Store
+ai_supply_chain_venv/
+.ai_supply_chain_venv
