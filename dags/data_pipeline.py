@@ -55,7 +55,7 @@ REQUIRED_COLS = [
     "Inventory Level", "Price", "Discount",
     "Holiday/Promotion", "Competitor Pricing",
     "Weather Condition", "Seasonality", "Units Ordered",
-    "Category", "Region",
+    "Category", "Region",                          # ← added
 ]
 
 # ── Feature / metadata constants ──────────────────────────────────────────────
@@ -63,19 +63,20 @@ FEATURE_COLS = [
     "sales_lag_1", "sales_lag_7", "sales_lag_14",
     "sales_roll_mean_7", "sales_roll_mean_14", "sales_roll_mean_28",
     "sales_ewm_28",
-    "dow", "month", "is_weekend",
+    "dow", "month", "is_weekend",                  # ← added is_weekend
     "Price", "Discount", "Holiday/Promotion",
-    "Competitor Pricing", "competitor_price_ratio",
+    "Competitor Pricing", "competitor_price_ratio", # ← added competitor_price_ratio
     "Weather Condition", "Seasonality",
-    "Category", "Region",
+    "Category", "Region",                          # ← added
     "Inventory Level", "Units Ordered",
-    "days_of_supply", "price_change",
+    "days_of_supply", "price_change",              # ← added
     "sample_weight"
+    # y_pred_baseline removed from here ← moved to EVAL_COLS
 ]
 META_COLS       = ["as_of_date", "series_id", "horizon", "pipeline_version", "created_at"]
 LABEL_COLS      = ["y"]
 IDENTIFIER_COLS = ["Store ID", "Product ID"]
-EVAL_COLS       = ["y_pred_baseline"]  # kept for post-training evaluation, not a training feature
+EVAL_COLS       = ["y_pred_baseline"]              # ← new, for evaluation only
 FINAL_COLS      = META_COLS + IDENTIFIER_COLS + FEATURE_COLS + EVAL_COLS + LABEL_COLS
 
 PIPELINE_VERSION = "1.0"
@@ -175,7 +176,7 @@ def transform(raw_path: str, horizon: int = 1, **context) -> str:
     # ── 4. Calendar features ──────────────────────────────────────────────────
     df["dow"]   = df["Date"].dt.dayofweek
     df["month"] = df["Date"].dt.month
-    df["is_weekend"] = df["dow"].isin([5, 6]).astype(int)
+    df["is_weekend"] = df["dow"].isin([5, 6]).astype(int) 
 
     # ── 5a. Price-derived features ────────────────────────────────────────────
     # Relative price vs. competition — clipped to avoid division by zero
