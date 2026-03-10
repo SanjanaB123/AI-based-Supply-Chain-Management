@@ -237,14 +237,31 @@ class TestTransform:
     def test_output_columns_count(self, sample_dataframe):
         result = transform(sample_dataframe)
         expected_cols = [
+            # Meta
             "as_of_date", "series_id", "horizon", "pipeline_version", "created_at",
+            # Identifiers
             "Store ID", "Product ID",
+            # Lag features
             "sales_lag_1", "sales_lag_7", "sales_lag_14",
-            "sales_roll_mean_7", "sales_roll_mean_14", "sales_roll_mean_28",
-            "dow", "month",
-            "Price", "Discount", "Holiday/Promotion", "Competitor Pricing",
-            "Weather Condition", "Seasonality", "Inventory Level", "Units Ordered",
-            "y"
+            # Rolling / EWM features
+            "sales_roll_mean_7", "sales_roll_mean_14", "sales_roll_mean_28", "sales_ewm_28",
+            # Calendar
+            "dow", "month", "is_weekend",
+            # Price / promo
+            "Price", "Discount", "Holiday/Promotion",
+            "Competitor Pricing", "competitor_price_ratio",
+            # Categorical identifiers
+            "Weather Condition", "Seasonality", "Category", "Region",
+            # Inventory
+            "Inventory Level", "Units Ordered", "days_of_supply",
+            # Price movement
+            "price_change",
+            # Training weight
+            "sample_weight",
+            # Eval baseline (EVAL_COLS — not a training feature)
+            "y_pred_baseline",
+            # Label
+            "y",
         ]
         assert set(result.columns) == set(expected_cols), (
             f"Column mismatch.\nExtra: {set(result.columns) - set(expected_cols)}\n"

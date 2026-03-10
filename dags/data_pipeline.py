@@ -55,6 +55,7 @@ REQUIRED_COLS = [
     "Inventory Level", "Price", "Discount",
     "Holiday/Promotion", "Competitor Pricing",
     "Weather Condition", "Seasonality", "Units Ordered",
+    "Category", "Region",
 ]
 
 # ── Feature / metadata constants ──────────────────────────────────────────────
@@ -62,16 +63,20 @@ FEATURE_COLS = [
     "sales_lag_1", "sales_lag_7", "sales_lag_14",
     "sales_roll_mean_7", "sales_roll_mean_14", "sales_roll_mean_28",
     "sales_ewm_28",
-    "dow", "month",
+    "dow", "month", "is_weekend",
     "Price", "Discount", "Holiday/Promotion",
-    "Competitor Pricing", "Weather Condition", "Seasonality",
+    "Competitor Pricing", "competitor_price_ratio",
+    "Weather Condition", "Seasonality",
+    "Category", "Region",
     "Inventory Level", "Units Ordered",
-    "y_pred_baseline", "sample_weight"
+    "days_of_supply", "price_change",
+    "sample_weight"
 ]
 META_COLS       = ["as_of_date", "series_id", "horizon", "pipeline_version", "created_at"]
 LABEL_COLS      = ["y"]
 IDENTIFIER_COLS = ["Store ID", "Product ID"]
-FINAL_COLS      = META_COLS + IDENTIFIER_COLS + FEATURE_COLS + LABEL_COLS
+EVAL_COLS       = ["y_pred_baseline"]  # kept for post-training evaluation, not a training feature
+FINAL_COLS      = META_COLS + IDENTIFIER_COLS + FEATURE_COLS + EVAL_COLS + LABEL_COLS
 
 PIPELINE_VERSION = "1.0"
 
@@ -170,45 +175,69 @@ def transform(raw_path: str, horizon: int = 1, **context) -> str:
     # ── 4. Calendar features ──────────────────────────────────────────────────
     df["dow"]   = df["Date"].dt.dayofweek
     df["month"] = df["Date"].dt.month
+    df["is_weekend"] = df["dow"].isin([5, 6]).astype(int)
 
-    # ── 5. Baseline prediction ─────────────────────────────────────────────────
-    # Use lag_7 for horizon=1, lag_1 for horizon=1 as fallback, lag_7 for horizon=7
+    # ── 5a. Price-derived features ────────────────────────────────────────────
+    # Relative price vs. competition — clipped to avoid division by zero
+    df["competitor_price_ratio"] = (
+        df["Price"] / df["Competitor Pricing"].clip(lower=0.01)
+    )
+
+    # Day-over-day price change per series (0 for first row of each series)
+    df["price_change"] = (
+        df.groupby(["Store ID", "Product ID"])["Price"]
+        .transform(lambda x: x.diff())
+        .fillna(0)
+    )
+
+    # ── 5b. Inventory risk feature ────────────────────────────────────────────
+    # Days of supply: how many days of avg sales does current inventory cover?
+    # Early-row NaNs (roll_mean_7 not yet defined) are filled with 30.0 (neutral)
+    # to avoid tripping the 2% missingness anomaly threshold downstream.
+    df["days_of_supply"] = (
+        df["Inventory Level"] / df["sales_roll_mean_7"].clip(lower=0.01)
+    ).clip(upper=365).fillna(30.0)
+
+    # ── 6. Baseline prediction ─────────────────────────────────────────────────
+    # Use lag_1 for horizon=1 (fallback to lag_7), lag_7 for longer horizons.
+    # NOTE: y_pred_baseline lives in EVAL_COLS — it is NOT a training feature.
     if horizon == 1:
         df["y_pred_baseline"] = df["sales_lag_1"].fillna(df["sales_lag_7"])
     else:
         df["y_pred_baseline"] = df["sales_lag_7"]
-    
-    # ── 6. Sample weights for bias mitigation ───────────────────────────────────
+
+    # ── 7. Sample weights for bias mitigation ───────────────────────────────────
     # Calculate inverse frequency weights by Store ID for bias mitigation
     store_freq = df["Store ID"].value_counts(normalize=True)
     df["sample_weight"] = df["Store ID"].map(lambda x: 1.0 / max(store_freq.get(x, 0), 1e-6))
     df["sample_weight"] = df["sample_weight"].clip(0.1, 10.0)  # Prevent extreme values
 
-    # ── 7. Label: next-step sales ─────────────────────────────────────────────
+    # ── 8. Label: next-step sales ─────────────────────────────────────────────
     df["y"] = gs.shift(-horizon)
 
-    # ── 8. Drop rows with missing lag_14 or missing label ────────────────────
+    # ── 9. Drop rows with missing lag_14 or missing label ────────────────────
     rows_before_drop = len(df)
     df = df.dropna(subset=["sales_lag_14", "y"])
     rows_dropped = rows_before_drop - len(df)
     if rows_dropped > 0:
-        log.info("Dropped %d rows due to missing lags or labels (%.1f%%)", 
+        log.info("Dropped %d rows due to missing lags or labels (%.1f%%)",
                 rows_dropped, (rows_dropped / rows_before_drop) * 100)
 
-    # ── 9. MLOps metadata ───────────────────────────────────────────────────
+    # ── 10. MLOps metadata ───────────────────────────────────────────────────
     df["as_of_date"]        = df["Date"]
     df["series_id"]         = df["Store ID"].astype(str) + "_" + df["Product ID"].astype(str)
     df["horizon"]           = horizon
     df["pipeline_version"]  = PIPELINE_VERSION
     df["created_at"]        = datetime.utcnow().isoformat()
 
-    # ── 10. Enhanced logging ───────────────────────────────────────────────────
+    # ── 11. Enhanced logging ───────────────────────────────────────────────────
     log.info("Unique series: %d", df["series_id"].nunique())
     log.info("Date range: %s → %s", df["Date"].min(), df["Date"].max())
-    
+
     # Log null percentages for key engineered features
-    key_features = ["sales_lag_1", "sales_lag_7", "sales_lag_14", "sales_roll_mean_7", 
-                    "sales_roll_mean_14", "sales_roll_mean_28", "y_pred_baseline"]
+    key_features = ["sales_lag_1", "sales_lag_7", "sales_lag_14", "sales_roll_mean_7",
+                    "sales_roll_mean_14", "sales_roll_mean_28",
+                    "competitor_price_ratio", "days_of_supply", "price_change"]
     for feature in key_features:
         if feature in df.columns:
             null_pct = df[feature].isnull().mean() * 100
@@ -217,7 +246,7 @@ def transform(raw_path: str, horizon: int = 1, **context) -> str:
     df = df[FINAL_COLS].reset_index(drop=True)
     log.info("Feature engineering complete — %d rows, %d columns", len(df), len(df.columns))
 
-    # ── 11. Write features ─────────────────────────────────────────────────────
+    # ── 12. Write features ─────────────────────────────────────────────────────
     FEAT_DIR.mkdir(parents=True, exist_ok=True)
     run_id   = context.get("run_id", datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"))
     out_path = FEAT_DIR / f"features_{run_id}.parquet"
