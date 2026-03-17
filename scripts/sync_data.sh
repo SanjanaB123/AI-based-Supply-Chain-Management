@@ -52,8 +52,18 @@ fi
 # 3. GitHub API Push (instead of git commands)
 DVC_FILE="${FEATURES_PATH}.dvc"
 DVC_CONFIG=".dvc/config"
-echo "Step 3: Pushing $DVC_FILE and $DVC_CONFIG to GitHub via API"
-python3 /opt/airflow/scripts/github_push.py "push" "$COMMIT_MESSAGE" "$DVC_FILE" "$DVC_CONFIG"
+GITIGNORE_FILE="$(dirname "$FEATURES_PATH")/.gitignore"
+
+FILES_TO_PUSH="$DVC_FILE"
+if [ -f "$DVC_CONFIG" ]; then
+    FILES_TO_PUSH="$FILES_TO_PUSH $DVC_CONFIG"
+fi
+if [ -f "$GITIGNORE_FILE" ]; then
+    FILES_TO_PUSH="$FILES_TO_PUSH $GITIGNORE_FILE"
+fi
+
+echo "Step 3: Pushing files to GitHub via API: $FILES_TO_PUSH"
+python3 /opt/airflow/scripts/github_push.py "push" "$COMMIT_MESSAGE" $FILES_TO_PUSH
 
 if [ $? -ne 0 ]; then
     echo "Error: GitHub API push failed"

@@ -6,8 +6,10 @@ def push_to_github(file_path, repo_name, token, commit_message):
     gh = Github(token)
     try:
         repo = gh.get_repo(repo_name)
-        # Convert path to be relative to /opt/airflow
-        rel_path = os.path.relpath(file_path, "/opt/airflow")
+        # Convert path to be relative to base dir (e.g. /opt/airflow)
+        base_dir = os.environ.get("AIRFLOW_HOME", "/opt/airflow")
+        abs_path = os.path.abspath(file_path)
+        rel_path = os.path.relpath(abs_path, base_dir)
         
         with open(file_path, "rb") as f:
             content = f.read()
@@ -31,7 +33,9 @@ def delete_from_github(file_path, repo_name, token, commit_message):
     gh = Github(token)
     try:
         repo = gh.get_repo(repo_name)
-        rel_path = os.path.relpath(file_path, "/opt/airflow")
+        base_dir = os.environ.get("AIRFLOW_HOME", "/opt/airflow")
+        abs_path = os.path.abspath(file_path)
+        rel_path = os.path.relpath(abs_path, base_dir)
         contents = repo.get_contents(rel_path)
         repo.delete_file(contents.path, commit_message, contents.sha)
         print(f"Deleted {rel_path} from GitHub.")
@@ -79,7 +83,7 @@ if __name__ == "__main__":
         list_github_files(repo_name, token, path)
         sys.exit(0)
 
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 4:
         print(f"Usage: python github_push.py {command} <commit_message> <file_path1> ...")
         sys.exit(1)
 

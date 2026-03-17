@@ -61,6 +61,7 @@ markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 mdurl==0.1.2
 methodtools==0.4.7
+mlflow==2.11.1
 more-itertools==10.8.0
 msgspec==0.20.0
 numpy==2.4.2
@@ -136,3 +137,4 @@ Werkzeug==3.1.5
 wirerope==1.0.0
 wrapt==2.1.0
 zipp==3.23.0
+PyGithub
