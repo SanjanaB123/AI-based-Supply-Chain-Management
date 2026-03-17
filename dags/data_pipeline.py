@@ -1433,7 +1433,7 @@ def transform(
 
     FEAT_DIR.mkdir(parents=True, exist_ok=True)
     run_id   = context.get("run_id", datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"))
-    out_path = FEAT_DIR / f"features_{run_id}.parquet"
+    out_path = FEAT_DIR / "features.parquet"
     df_feat.to_parquet(out_path, index=False)
     log.info("Features written to %s", out_path)
     return str(out_path)
@@ -1446,7 +1446,7 @@ def load(features_path: str, bucket_name: str = GCS_BUCKET_NAME, **context) -> N
     """Upload the processed features Parquet file to Google Cloud Storage."""
     features_path    = str(features_path).strip('"').strip("'")
     run_id           = context.get("run_id", datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"))
-    destination_blob = f"features/features_{run_id}.parquet"
+    destination_blob = "features/features.parquet"
 
     log.info("Uploading %s → gs://%s/%s", features_path, bucket_name, destination_blob)
     upload_to_gcs(
