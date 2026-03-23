@@ -58,6 +58,7 @@ plugins/
 params.yaml
 gcp-key.json
 .gitattributes
-check_gcp_files.py
-check_data.py 
 temp_features.parquet
+./checks/
+checks
+**run_tests.sh
