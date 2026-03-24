@@ -1,0 +1,160 @@
+name: ML Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**.dvc'
+  workflow_dispatch:
+
+jobs:
+  ml_pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download previous Optuna studies
+        uses: actions/download-artifact@v4
+        with:
+          name: optuna-studies
+          path: .
+        continue-on-error: true  # First run won't have studies to download
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools
+          pip install -r requirements.txt
+
+      - name: Set up MLflow environment
+        env:
+          MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
+        run: |
+          echo "MLflow tracking URI: $MLFLOW_TRACKING_URI"
+          python -c "import mlflow; print('MLflow version:', mlflow.__version__)"
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Create directories
+        run: |
+          mkdir -p data/splits data/models/xgboost data/models/prophet reports
+
+      - name: Debug data folder
+        run: |
+          echo "Contents of data/:"
+          ls -lh data/
+          echo "Contents of data/features/:"
+          ls -lh data/features/
+
+      - name: Configure DVC credentials
+        run: |
+          dvc remote modify --local storage credentialpath "$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: Pull data from DVC
+        run: dvc pull
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
+
+      - name: Split data
+        run: python scripts/data_splitting.py
+
+      - name: Tune XGBoost hyperparameters
+        env:
+          MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
+        run: |
+          python modelling/optuna_tuning.py \
+            --model xgboost \
+            --data-dir data/splits \
+            --output-dir optuna_studies \
+            --xgb-trials 50
+
+      - name: Tune Prophet hyperparameters
+        env:
+          MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
+        run: |
+          python modelling/optuna_tuning.py \
+            --model prophet \
+            --data-dir data/splits \
+            --output-dir optuna_studies \
+            --prophet-trials 30
+
+      - name: Train XGBoost model
+        env:
+          MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
+        run: |
+          python modelling/xgboost_model.py \
+            --data-dir data/splits \
+            --output-dir data/models/xgboost \
+            --reports-dir reports \
+            --params-path optuna_studies/xgboost/best_params.json
+
+      - name: Train Prophet model
+        env:
+          MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
+        run: |
+          python modelling/prophet_model.py \
+            --data-dir data/splits \
+            --output-dir data/models/prophet \
+            --reports-dir reports \
+            --params-path optuna_studies/prophet/best_params.json
+
+      - name: Select best model and promote to production
+        env:
+          MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
+        run: |
+          python scripts/select_model.py
+          if [ -f "reports/best_model.txt" ]; then
+            echo "BEST_MODEL=$(cat reports/best_model.txt)" >> $GITHUB_ENV
+          else
+            echo "ERROR: best_model.txt not found" >> $GITHUB_ENV
+            exit 1
+          fi
+      
+      - name: Run bias detection
+        env:
+          MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
+        run: |
+          python scripts/bias_detection.py \
+            --model-name "$BEST_MODEL" \
+            --data-dir data/splits \
+            --scaler-path data/models/xgboost/scaler.pkl
+
+      - name: Run sensitivity analysis
+        env:
+          MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
+        run: python scripts/sensitivity_analysis.py --model-name "$BEST_MODEL" --data-dir data/splits
+
+      - name: Clean up split files
+        run: |
+          rm -f data/splits/train.parquet data/splits/val.parquet data/splits/test.parquet
+
+      - name: Upload models and reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-and-reports
+          path: |
+            data/models/
+            reports/
+
+      - name: Save Optuna studies for next run
+        uses: actions/upload-artifact@v4
+        with:
+          name: optuna-studies
+          path: |
+            optuna_studies.db
+            optuna_studies/
+          retention-days: 90
+          overwrite: true
+
