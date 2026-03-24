@@ -138,7 +138,7 @@ def version_with_dvc(features_path: str, **context) -> str:
     creds_path    = Path("/opt/airflow/gcp-key.json")
     bucket_name   = os.getenv("GCS_BUCKET_NAME", "").strip()
     github_token  = os.getenv("GITHUB_TOKEN", "").strip()
-    github_repo   = os.getenv("GITHUB_REPO", "vedashreebane/ci_cd").strip()
+    github_repo   = os.getenv("GITHUB_REPO", "SanjanaB123/AI-based-Supply-Chain-Management").strip()
 
     def run_cmd(cmd: list[str], env_extra: dict = None) -> str:
         env = os.environ.copy()

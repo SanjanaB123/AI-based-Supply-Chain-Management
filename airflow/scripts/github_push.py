@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
     command = sys.argv[1]
     token = os.getenv("GITHUB_TOKEN")
-    repo_name = os.getenv("GITHUB_REPO", "vedashreebane/ci_cd")
+    repo_name = os.getenv("GITHUB_REPO", "SanjanaB123/AI-based-Supply-Chain-Management")
 
     if not token:
         print("Error: GITHUB_TOKEN not found in environment.")

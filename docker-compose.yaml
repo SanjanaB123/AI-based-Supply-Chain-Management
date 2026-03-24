@@ -63,7 +63,7 @@ x-airflow-common:
     GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/gcp-key.json
     GCS_BUCKET_NAME: ${GCS_BUCKET_NAME:-supply-chain-pipeline}
     GITHUB_TOKEN: "${GITHUB_TOKEN}"
-    GITHUB_REPO: "${GITHUB_REPO:-ropr123/ci-cd}"
+    GITHUB_REPO: "${GITHUB_REPO:-SanjanaB123/AI-based-Supply-Chain-Management}"
     # AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
     # AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
     AIRFLOW__CORE__FERNET_KEY: ''
