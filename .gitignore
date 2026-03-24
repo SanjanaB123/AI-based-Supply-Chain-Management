@@ -62,3 +62,4 @@ temp_features.parquet
 ./checks/
 checks
 **run_tests.sh
+**.db
