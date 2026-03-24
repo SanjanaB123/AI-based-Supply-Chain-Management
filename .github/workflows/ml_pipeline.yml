@@ -2,7 +2,7 @@ name: ML Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, modelling ] 
     paths:
       - '**.dvc'
   workflow_dispatch:
@@ -68,13 +68,13 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
 
       - name: Split data
-        run: python scripts/data_splitting.py
+        run: python modelling/scripts/data_splitting.py
 
       - name: Tune XGBoost hyperparameters
         env:
           MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
         run: |
-          python modelling/optuna_tuning.py \
+          python modelling/models/optuna_tuning.py \
             --model xgboost \
             --data-dir data/splits \
             --output-dir optuna_studies \
@@ -84,7 +84,7 @@ jobs:
         env:
           MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
         run: |
-          python modelling/optuna_tuning.py \
+          python modelling/models/optuna_tuning.py \
             --model prophet \
             --data-dir data/splits \
             --output-dir optuna_studies \
@@ -94,7 +94,7 @@ jobs:
         env:
           MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
         run: |
-          python modelling/xgboost_model.py \
+          python modelling/models/xgboost_model.py \
             --data-dir data/splits \
             --output-dir data/models/xgboost \
             --reports-dir reports \
@@ -104,7 +104,7 @@ jobs:
         env:
           MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
         run: |
-          python modelling/prophet_model.py \
+          python modelling/models/prophet_model.py \
             --data-dir data/splits \
             --output-dir data/models/prophet \
             --reports-dir reports \
@@ -114,7 +114,7 @@ jobs:
         env:
           MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
         run: |
-          python scripts/select_model.py
+          python modelling/scripts/select_model.py
           if [ -f "reports/best_model.txt" ]; then
             echo "BEST_MODEL=$(cat reports/best_model.txt)" >> $GITHUB_ENV
           else
@@ -126,7 +126,7 @@ jobs:
         env:
           MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
         run: |
-          python scripts/bias_detection.py \
+          python modelling/scripts/bias_detection.py \
             --model-name "$BEST_MODEL" \
             --data-dir data/splits \
             --scaler-path data/models/xgboost/scaler.pkl
@@ -134,7 +134,7 @@ jobs:
       - name: Run sensitivity analysis
         env:
           MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
-        run: python scripts/sensitivity_analysis.py --model-name "$BEST_MODEL" --data-dir data/splits
+        run: python modelling/scripts/sensitivity_analysis.py --model-name "$BEST_MODEL" --data-dir data/splits
 
       - name: Clean up split files
         run: |
