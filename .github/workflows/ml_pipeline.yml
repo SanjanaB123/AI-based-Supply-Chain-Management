@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools
-          pip install -r requirements.txt
+          pip install -r modelling/requirements.txt
 
       - name: Set up MLflow environment
         env:
