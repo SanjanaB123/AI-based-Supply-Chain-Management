@@ -2,7 +2,7 @@ name: ML Pipeline
 
 on:
   push:
-    branches: [ main, modelling ] 
+    branches: [ main, modelling, modelling ] 
     paths:
       - '**.dvc'
   workflow_dispatch:

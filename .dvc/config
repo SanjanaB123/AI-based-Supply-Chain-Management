@@ -1,4 +1,6 @@
 [core]
+    no_scm = True
     remote = storage
-[remote "storage"]
-    url = gs://ai-chain-supply-gcp-bucket/dvc
+['remote "storage"']
+    url = gs://supply-chain-pipeline/dvc
+    credentialpath = /opt/airflow/gcp-key.json
