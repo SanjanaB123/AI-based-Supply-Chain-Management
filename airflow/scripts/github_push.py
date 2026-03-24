@@ -15,12 +15,12 @@ def push_to_github(file_path, repo_name, token, commit_message):
             content = f.read()
 
         try:
-            contents = repo.get_contents(rel_path, ref="modelling")
-            repo.update_file(contents.path, commit_message, content, contents.sha, branch="modelling")
+            contents = repo.get_contents(rel_path)
+            repo.update_file(contents.path, commit_message, content, contents.sha)
             print(f"Updated {rel_path} on GitHub.")
         except GithubException as e:
             if e.status == 404:
-                repo.create_file(rel_path, commit_message, content, branch="modelling")
+                repo.create_file(rel_path, commit_message, content)
                 print(f"Created {rel_path} on GitHub.")
             else:
                 raise e
@@ -36,8 +36,8 @@ def delete_from_github(file_path, repo_name, token, commit_message):
         base_dir = os.environ.get("AIRFLOW_HOME", "/opt/airflow")
         abs_path = os.path.abspath(file_path)
         rel_path = os.path.relpath(abs_path, base_dir)
-        contents = repo.get_contents(rel_path, ref="modelling")
-        repo.delete_file(contents.path, commit_message, contents.sha, branch="modelling")
+        contents = repo.get_contents(rel_path)
+        repo.delete_file(contents.path, commit_message, contents.sha)
         print(f"Deleted {rel_path} from GitHub.")
         return True
     except GithubException as e:
