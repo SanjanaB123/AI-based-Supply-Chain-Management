@@ -15,7 +15,7 @@ fi
 
 # Configuration
 REPO_OWNER="SanjanaB123"
-REPO_NAME="model_ci_cd"
+REPO_NAME="AI-based-Supply-Chain-Management"
 WORKFLOW_FILE="ml_pipeline.yml"
 
 # Get GitHub token from environment or prompt
