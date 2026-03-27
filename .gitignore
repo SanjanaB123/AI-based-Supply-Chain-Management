@@ -62,4 +62,6 @@ temp_features.parquet
 ./checks/
 checks
 **run_tests.sh
+ai_supply_chain_venv/
+.ai_supply_chain_venv
 **.db
