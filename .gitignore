@@ -63,3 +63,4 @@ temp_features.parquet
 checks
 **run_tests.sh
 **.db
+.claude/

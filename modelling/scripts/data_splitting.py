@@ -84,10 +84,12 @@ REPORTS_DIR = Path("reports")
 def encode_series(
     train: pd.DataFrame,
     *others: pd.DataFrame,
-) -> tuple[pd.DataFrame, ...]:
+) -> tuple[dict, pd.DataFrame, ...]:
     """
     Label-encode series_id (Store × Product) into series_enc integer column.
     Fit mapping on train only; unseen series in val/test get -1.
+
+    Returns (mapping, train, *others) where mapping is {series_id_str: int}.
     """
     if "series_id" not in train.columns:
         train = train.copy()
@@ -108,7 +110,7 @@ def encode_series(
         df = df.drop(columns=["series_id"])  # Remove temporary column
         results.append(df)
 
-    return tuple(results)
+    return (mapping, *results)
 
 
 # ── Data classes ───────────────────────────────────────────────────────────────
@@ -446,7 +448,7 @@ def main():
     split = chronological_split(df, train_frac=0.80, val_frac=0.10)
 
     # 3. Encode series (Store ID + Product ID combination)
-    split.train, split.val, split.test = encode_series(split.train, split.val, split.test)
+    _, split.train, split.val, split.test = encode_series(split.train, split.val, split.test)
     log.info("Added series_enc column to all splits")
 
     # 4. Validate — no chronological leakage, all series represented

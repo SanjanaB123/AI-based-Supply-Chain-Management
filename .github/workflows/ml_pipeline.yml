@@ -10,6 +10,8 @@ on:
 jobs:
   ml_pipeline:
     runs-on: ubuntu-latest
+    env:
+      GCS_BUCKET: supply-chain-pipeline
 
     steps:
       - name: Checkout repository
