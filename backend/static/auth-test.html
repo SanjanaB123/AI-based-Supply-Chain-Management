@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auth Test — Supply Chain</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+               background: #0f172a; color: #e2e8f0; min-height: 100vh;
+               display: flex; justify-content: center; align-items: flex-start; padding: 2rem; }
+        .container { max-width: 480px; width: 100%; }
+        h1 { text-align: center; margin-bottom: 1.5rem; color: #38bdf8; font-size: 1.5rem; }
+        .card { background: #1e293b; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #94a3b8; }
+        label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem; }
+        input { width: 100%; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #334155;
+                background: #0f172a; color: #e2e8f0; font-size: 0.95rem; margin-bottom: 0.75rem; }
+        input:focus { outline: none; border-color: #38bdf8; }
+        button { width: 100%; padding: 0.65rem; border: none; border-radius: 8px; font-size: 0.95rem;
+                 cursor: pointer; font-weight: 600; margin-bottom: 0.5rem; transition: opacity 0.2s; }
+        button:hover { opacity: 0.85; }
+        .btn-primary { background: #38bdf8; color: #0f172a; }
+        .btn-google { background: #fff; color: #333; border: 1px solid #ddd; }
+        .btn-logout { background: #ef4444; color: #fff; }
+        .divider { text-align: center; color: #475569; margin: 0.75rem 0; font-size: 0.85rem; }
+        #status { margin-top: 1rem; padding: 0.75rem; border-radius: 8px; font-size: 0.85rem;
+                  display: none; word-break: break-all; }
+        .success { background: #064e3b; color: #6ee7b7; display: block !important; }
+        .error { background: #7f1d1d; color: #fca5a5; display: block !important; }
+        .profile { display: none; }
+        .profile.visible { display: block; }
+        .profile-field { display: flex; justify-content: space-between; padding: 0.5rem 0;
+                         border-bottom: 1px solid #334155; font-size: 0.9rem; }
+        .profile-field:last-child { border-bottom: none; }
+        .profile-field span:first-child { color: #94a3b8; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Supply Chain Auth Test</h1>
+
+    <!-- Register -->
+    <div class="card" id="auth-forms">
+        <h2>Register</h2>
+        <label>Email</label>
+        <input id="reg-email" type="email" placeholder="you@example.com" />
+        <label>Username</label>
+        <input id="reg-username" type="text" placeholder="johndoe" />
+        <label>Password</label>
+        <input id="reg-password" type="password" placeholder="••••••••" />
+        <button class="btn-primary" onclick="register()">Create Account</button>
+
+        <div class="divider">— or login —</div>
+
+        <h2>Login</h2>
+        <label>Email</label>
+        <input id="login-email" type="email" placeholder="you@example.com" />
+        <label>Password</label>
+        <input id="login-password" type="password" placeholder="••••••••" />
+        <button class="btn-primary" onclick="login()">Login with JWT</button>
+
+        <div class="divider">— or —</div>
+        <button class="btn-google" onclick="googleLogin()">Sign in with Google</button>
+
+        <div id="status"></div>
+    </div>
+
+    <!-- Profile (shown after login) -->
+    <div class="card profile" id="profile">
+        <h2>Your Profile</h2>
+        <div class="profile-field"><span>ID</span><span id="p-id"></span></div>
+        <div class="profile-field"><span>Email</span><span id="p-email"></span></div>
+        <div class="profile-field"><span>Username</span><span id="p-username"></span></div>
+        <div class="profile-field"><span>Provider</span><span id="p-provider"></span></div>
+        <div class="profile-field"><span>Created</span><span id="p-created"></span></div>
+        <br/>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+</div>
+
+<script>
+const API = window.location.origin;
+
+// Check for OAuth callback token in URL
+const params = new URLSearchParams(window.location.search);
+if (params.get("token")) {
+    localStorage.setItem("token", params.get("token"));
+    window.history.replaceState({}, "", window.location.pathname);
+    fetchProfile();
+} else if (localStorage.getItem("token")) {
+    fetchProfile();
+}
+
+function showStatus(msg, ok) {
+    const el = document.getElementById("status");
+    el.textContent = msg;
+    el.className = ok ? "success" : "error";
+}
+
+async function register() {
+    const body = {
+        email: document.getElementById("reg-email").value,
+        username: document.getElementById("reg-username").value,
+        password: document.getElementById("reg-password").value,
+    };
+    try {
+        const res = await fetch(`${API}/auth/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Registration failed");
+        showStatus("Registered! Now login with your credentials.", true);
+    } catch (e) { showStatus(e.message, false); }
+}
+
+async function login() {
+    const body = {
+        email: document.getElementById("login-email").value,
+        password: document.getElementById("login-password").value,
+    };
+    try {
+        const res = await fetch(`${API}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Login failed");
+        localStorage.setItem("token", data.access_token);
+        showStatus("Login successful!", true);
+        fetchProfile();
+    } catch (e) { showStatus(e.message, false); }
+}
+
+function googleLogin() {
+    window.location.href = `${API}/auth/google/login`;
+}
+
+async function fetchProfile() {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+        const res = await fetch(`${API}/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) { logout(); return; }
+        const user = await res.json();
+        document.getElementById("p-id").textContent = user.id;
+        document.getElementById("p-email").textContent = user.email;
+        document.getElementById("p-username").textContent = user.username;
+        document.getElementById("p-provider").textContent = user.auth_provider;
+        document.getElementById("p-created").textContent = new Date(user.created_at).toLocaleString();
+        document.getElementById("profile").classList.add("visible");
+        document.getElementById("auth-forms").style.display = "none";
+    } catch (e) { console.error(e); }
+}
+
+function logout() {
+    localStorage.removeItem("token");
+    document.getElementById("profile").classList.remove("visible");
+    document.getElementById("auth-forms").style.display = "block";
+    showStatus("Logged out.", true);
+}
+</script>
+</body>
+</html>

@@ -1,7 +1,15 @@
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import pandas as pd
 import os
+
+from database import engine, Base
+from routes_auth import router as auth_router
+
+# Create DB tables on startup
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Inventory Dashboard API", version="1.0.0")
 
@@ -12,6 +20,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount auth routes
+app.include_router(auth_router)
+
+# Serve the test frontend
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+os.makedirs(STATIC_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/auth-test.html")
+def serve_auth_test():
+    return FileResponse(os.path.join(STATIC_DIR, "auth-test.html"))
+
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "better_inventory_snapshot.csv")
 N_DAYS = 365  # period over which Total Units Sold is measured
