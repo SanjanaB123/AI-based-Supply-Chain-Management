@@ -25,6 +25,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -193,6 +194,7 @@ code {
 }
 
 .field-group input,
+.field-group select,
 .field-group textarea {
   width: 100%;
   padding: 14px 16px;
@@ -207,6 +209,7 @@ code {
 }
 
 .field-group input:focus,
+.field-group select:focus,
 .field-group textarea:focus {
   outline: none;
   border-color: rgba(255, 191, 117, 0.7);
