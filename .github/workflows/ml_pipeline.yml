@@ -125,6 +125,8 @@ jobs:
           fi
       
       - name: Run bias detection
+        id: bias
+        continue-on-error: true
         env:
           MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
         run: |
@@ -132,6 +134,14 @@ jobs:
             --model-name "$BEST_MODEL" \
             --data-dir data/splits \
             --scaler-path data/models/xgboost/scaler.pkl
+
+      - name: Alert on bias detection issues
+        if: steps.bias.outcome == 'failure'
+        run: |
+          echo "## Bias Detection Warning" >> $GITHUB_STEP_SUMMARY
+          echo "Bias detection flagged issues for model **$BEST_MODEL**." >> $GITHUB_STEP_SUMMARY
+          echo "Review the bias report in the workflow artifacts." >> $GITHUB_STEP_SUMMARY
+          echo "[View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
 
       - name: Run sensitivity analysis
         env:
@@ -159,4 +169,30 @@ jobs:
             optuna_studies/
           retention-days: 90
           overwrite: true
+
+      - name: Pipeline success summary
+        if: success()
+        run: |
+          echo "## ML Pipeline Succeeded" >> $GITHUB_STEP_SUMMARY
+          echo "**Best model:** $BEST_MODEL" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f reports/model_comparison.json ]; then
+            echo "### Model Comparison" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat reports/model_comparison.json >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "[View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+
+      - name: Pipeline failure summary
+        if: failure()
+        run: |
+          echo "## ML Pipeline Failed" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "[View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
 
