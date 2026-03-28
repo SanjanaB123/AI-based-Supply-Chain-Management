@@ -45,4 +45,10 @@ ENV PYTHONPATH=/app \
     PYTHONUNBUFFERED=1 \
     CMDSTAN=/root/.cmdstan/cmdstan-2.35.0
 
-CMD ["python", "modelling/models/xgboost_model.py"]
+# Default: XGBoost training. Override CMD to run any script:
+#   docker run <image>                                          → XGBoost
+#   docker run <image> modelling/models/prophet_model.py        → Prophet
+#   docker run <image> modelling/models/optuna_tuning.py ...    → Tuning
+#   docker run <image> modelling/scripts/bias_detection.py ...  → Bias check
+ENTRYPOINT ["python"]
+CMD ["modelling/models/xgboost_model.py"]
