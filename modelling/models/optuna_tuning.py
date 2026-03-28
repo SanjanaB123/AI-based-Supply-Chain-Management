@@ -131,7 +131,7 @@ def encode_series(train: pd.DataFrame, *others: pd.DataFrame) -> tuple:
             )
         df["series_enc"] = df["series_id"].map(mapping).fillna(-1).astype(int)
         results.append(df)
-    return tuple(results)
+    return (mapping, *results)
 
 
 def scale(X_train: pd.DataFrame, X_val: pd.DataFrame) -> tuple:
@@ -211,7 +211,7 @@ def xgboost_objective(trial: optuna.Trial, train_df: pd.DataFrame) -> float:
     fold_maes = []
 
     for fold_idx, (tr, vl) in enumerate(folds):
-        tr, vl = encode_series(tr, vl)
+        _, tr, vl = encode_series(tr, vl)
 
         available = [c for c in FEATURE_COLS if c in tr.columns]
         X_tr = tr[available]

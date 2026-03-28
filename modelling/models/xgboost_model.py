@@ -233,7 +233,7 @@ def walk_forward_eval(
             continue
 
         # Encode series within the fold
-        fold_train, fold_val = encode_series(fold_train, fold_val)
+        _, fold_train, fold_val = encode_series(fold_train, fold_val)
 
         X_tr, y_tr, w_tr = get_X_y_w(fold_train)
         X_vl, y_vl, _    = get_X_y_w(fold_val)
@@ -275,12 +275,12 @@ def train_final(
     val_df:   pd.DataFrame,
     test_df:  pd.DataFrame,
     params:   dict = DEFAULT_PARAMS,
-) -> tuple[xgb.XGBRegressor, StandardScaler, dict, dict]:
+) -> tuple[xgb.XGBRegressor, StandardScaler, dict, dict, dict]:
     """
     Train final model on full train set, evaluate on val and test.
-    Returns (model, scaler, val_metrics, test_metrics).
+    Returns (model, scaler, series_mapping, val_metrics, test_metrics).
     """
-    train_df, val_df, test_df = encode_series(train_df, val_df, test_df)
+    series_mapping, train_df, val_df, test_df = encode_series(train_df, val_df, test_df)
 
     X_tr, y_tr, w_tr = get_X_y_w(train_df)
     X_vl, y_vl, _    = get_X_y_w(val_df)
@@ -304,7 +304,7 @@ def train_final(
     val_metrics  = compute_metrics(y_vl.values,  val_pred,  label="XGBoost val")
     test_metrics = compute_metrics(y_te.values, test_pred, label="XGBoost test")
 
-    return model, scaler, val_metrics, test_metrics
+    return model, scaler, series_mapping, val_metrics, test_metrics
 
 
 # ── Feature importance ────────────────────────────────────────────────────────
@@ -346,7 +346,7 @@ def main(data_dir: Path, output_dir: Path, reports_dir: Path, params_path: Path 
 
     # Training (no MLflow dependency)
     fold_results = walk_forward_eval(train_df, n_splits=5, params=params)
-    model, scaler, val_metrics, test_metrics = train_final(train_df, val_df, test_df, params)
+    model, scaler, series_mapping, val_metrics, test_metrics = train_final(train_df, val_df, test_df, params)
     fi_df = get_feature_importance(model, FEATURE_COLS)
     log.info("Top 10 features:\n%s", fi_df.head(10).to_string(index=False))
 
@@ -359,8 +359,22 @@ def main(data_dir: Path, output_dir: Path, reports_dir: Path, params_path: Path 
     fi_df.to_csv(fi_path, index=False)
     model.save_model(str(model_path))
     joblib.dump(scaler, scaler_path)
+    mapping_path = output_dir / "series_mapping.json"
+    with open(mapping_path, "w") as f:
+        json.dump(series_mapping, f, indent=2)
     log.info("Model saved to %s", model_path)
     log.info("Scaler saved to %s", scaler_path)
+    log.info("Series mapping saved to %s", mapping_path)
+
+    # Upload preprocessing artifacts to GCS
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+        from artifact_io import save_preprocessing_artifacts
+        gcs_uris = save_preprocessing_artifacts(scaler, scaler_path, series_mapping, output_dir)
+        log.info("Preprocessing artifacts uploaded to GCS: %s", gcs_uris)
+    except Exception as e:
+        log.warning("GCS artifact upload failed — artifacts saved locally only. Error: %s", e)
 
     reports_dir.mkdir(parents=True, exist_ok=True)
     report = {
@@ -410,6 +424,7 @@ def main(data_dir: Path, output_dir: Path, reports_dir: Path, params_path: Path 
             mlflow.log_artifact(str(fi_path),     "feature_importance")
             mlflow.log_artifact(str(report_path), "reports")
             mlflow.log_artifact(str(scaler_path), "preprocessing")
+            mlflow.log_artifact(str(mapping_path), "preprocessing")
             mlflow.log_dict(fi_df.head(10).to_dict(), "top_features.json")
         log.info("MLflow logging complete.")
     except Exception as e:
