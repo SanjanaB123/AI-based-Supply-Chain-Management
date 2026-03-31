@@ -39,7 +39,7 @@ jobs:
 
       - name: Run rollback
         env:
-          MLFLOW_TRACKING_URI: https://mlflow-833456981899.us-central1.run.app/
+          MLFLOW_TRACKING_URI: https://mlflow-952666479463.us-central1.run.app/
         run: |
           VERSION_ARG=""
           if [ -n "${{ inputs.target_version }}" ]; then

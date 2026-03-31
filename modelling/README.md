@@ -62,7 +62,7 @@ cd ci_cd-main
 ```bash
 # Create .env file (add to .gitignore)
 echo "GITHUB_TOKEN=your_github_pat_here" > .env
-echo "MLFLOW_TRACKING_URI=https://mlflow-833456981899.us-central1.run.app/" >> .env
+echo "MLFLOW_TRACKING_URI=https://mlflow-952666479463.us-central1.run.app/" >> .env
 ```
 
 3. **Install Dependencies**
@@ -163,7 +163,7 @@ predictions = predict_demand(model, input_data, model_name)
 
 ```bash
 # Set environment
-export MLFLOW_TRACKING_URI=https://mlflow-833456981899.us-central1.run.app/
+export MLFLOW_TRACKING_URI=https://mlflow-952666479463.us-central1.run.app/
 
 # Run inference
 python inference.py
@@ -193,7 +193,7 @@ Sample predictions: [145.23, 167.89, 123.45, 189.67, 156.78]
 
 ### Access MLflow
 
-MLflow Server: https://mlflow-833456981899.us-central1.run.app/
+MLflow Server: https://mlflow-952666479463.us-central1.run.app/
 
 - **Experiments Tab**: View training runs and compare metrics
 - **Models Tab**: See model registry and production versions
@@ -325,7 +325,7 @@ GitHub Actions → Model Training → MLflow Registry → Production Model → I
 
 ```bash
 # Required
-MLFLOW_TRACKING_URI=https://mlflow-833456981899.us-central1.run.app/
+MLFLOW_TRACKING_URI=https://mlflow-952666479463.us-central1.run.app/
 
 # Optional (for API triggers)
 GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -373,7 +373,7 @@ GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ```bash
 # Enable verbose logging
-export MLFLOW_TRACKING_URI=https://mlflow-833456981899.us-central1.run.app/
+export MLFLOW_TRACKING_URI=https://mlflow-952666479463.us-central1.run.app/
 python -v select_model.py
 ```
 
@@ -457,7 +457,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 Ready to deploy intelligent ML models automatically?
 
-MLflow Server: https://mlflow-833456981899.us-central1.run.app/
+MLflow Server: https://mlflow-952666479463.us-central1.run.app/
 GitHub Actions: https://github.com/SanjanaB123/model_ci_cd/actions
 
 ---

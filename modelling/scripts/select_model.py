@@ -13,7 +13,7 @@ from mlflow.tracking import MlflowClient
 # Configuration
 MLFLOW_TRACKING_URI = os.getenv(
     "MLFLOW_TRACKING_URI", 
-    "https://mlflow-833456981899.us-central1.run.app/"
+    "https://mlflow-952666479463.us-central1.run.app/",
 )
 
 def load_model_reports():

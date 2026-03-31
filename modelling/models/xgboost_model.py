@@ -104,7 +104,7 @@ DEFAULT_PARAMS = {
 # ── MLflow Configuration ───────────────────────────────────────────────────────
 MLFLOW_TRACKING_URI = os.getenv(
     "MLFLOW_TRACKING_URI", 
-    "https://mlflow-833456981899.us-central1.run.app/"
+    "https://mlflow-952666479463.us-central1.run.app/"
 )
 MLFLOW_EXPERIMENT_NAME = "supply-chain-forecasting"
 
