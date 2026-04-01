@@ -68,3 +68,4 @@ ai_supply_chain_venv/
 **.db
 **.db
 .claude/
+environment
