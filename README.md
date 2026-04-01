@@ -12,19 +12,28 @@ The system follows a production-oriented MLOps architecture with comprehensive d
 
 - **Storage**: MongoDB for raw data, Google Cloud Storage for processed features and versioned data
 - **Pipelines**: Airflow-orchestrated data preprocessing, feature engineering, validation, and monitoring
+- **ML Training**: GitHub Actions CI/CD pipeline triggering model training on data changes
+- **Model Registry**: MLflow on Cloud Run for experiment tracking, model versioning, and production promotion
 - **Data Version Control**: DVC for tracking data and model versions alongside code
 - **Quality Assurance**: Schema validation with Great Expectations and comprehensive anomaly detection
 - **Bias Detection**: Automated bias analysis across multiple data slices with mitigation strategies
 - **Monitoring**: Real-time anomaly detection, email alerts, and comprehensive logging
-- **Serving**: Batch forecasts with optional online inference endpoints
+- **Serving**: Batch forecasts via MLflow Production stage; MCP-based inference in development
 
 ## Key Features
 
 ### Core Pipeline Components
 - **Daily demand forecasting** at store–product granularity with time-series feature engineering
 - **Automated training and batch inference pipelines** with Airflow orchestration
-- **Model versioning and experiment tracking** through DVC integration
+- **Model versioning and experiment tracking** through MLflow and DVC integration
 - **Data and prediction drift monitoring** with automated alerting
+
+### ML Model Development
+- **Two-model strategy**: XGBoost (global model) and Prophet (per-series) trained and compared each run
+- **Bayesian hyperparameter tuning** using Optuna with resumable SQLite-backed studies (50 trials XGBoost, 30 Prophet)
+- **Walk-forward cross-validation** with 5 folds and 14-day gap to prevent temporal leakage
+- **Automated model selection**: best model promoted to MLflow Production with 5% improvement gate
+- **Rollback support**: previous model versions archived and restorable via GitHub Actions workflow
 
 ### Data Quality & Validation
 - **Schema validation** using Great Expectations with automated statistics generation
@@ -32,19 +41,26 @@ The system follows a production-oriented MLOps architecture with comprehensive d
 - **Data quality checks** with configurable thresholds and automated reporting
 
 ### Bias Detection & Mitigation
-- **Automated bias analysis** across multiple slices (Store ID, Product ID, Weather, Seasonality, Promotions)
-- **Sample weight calculation** for bias mitigation in model training
-- **Performance analysis** by demographic and operational segments
+- **Training-time bias** across Store ID, Product ID, Weather, Seasonality, and Promotions slices with sample weight calculation
+- **Inference-time bias detection** across Category, Region, and Seasonality slices — flags disparities >25% above overall MAE
+- **CI gate**: bias check failure blocks model deployment in the pipeline
+- **Mitigation suggestions** generated automatically per flagged slice
+
+### Sensitivity Analysis
+- **SHAP feature importance**: TreeExplainer on 500 test samples, bar + beeswarm plots logged to MLflow
+- **Hyperparameter sensitivity**: Optuna parameter importance and parallel coordinate plots
+- **Model comparison visualisation**: bar charts of XGBoost vs Prophet on test MAE/RMSE/R²
 
 ### Monitoring & Alerting
 - **Real-time anomaly detection** with configurable thresholds
 - **Email alert system** for critical anomalies and pipeline failures
+- **GitHub Actions step summaries** for pipeline success/failure and bias alerts
 - **Comprehensive logging** throughout the pipeline with structured error handling
 
 ### Cloud Integration & Version Control
-- **Google Cloud Storage integration** for scalable data storage
+- **Google Cloud Storage integration** for scalable data storage and preprocessing artifacts
 - **Data Version Control (DVC)** for tracking data and model versions
-- **Containerized deployment** with Docker Compose for reproducibility
+- **Containerized deployment** with Docker Compose for Airflow and a multi-stage Dockerfile for the ML training environment
 
 ## Dataset
 
@@ -55,13 +71,20 @@ Precomputed demand forecast fields present in the dataset are excluded from trai
 ## Tech Stack
 
 ### Core Technologies
-- **Python 3.9+** with comprehensive data science libraries
+- **Python 3.11+** with comprehensive data science libraries
 - **Apache Airflow 3.0** for pipeline orchestration and scheduling
 - **MongoDB** for raw data storage
-- **Google Cloud Platform** (GCS)
+- **Google Cloud Platform** (GCS, Cloud Run)
 
-### MLOps & Data Quality
+### ML & MLOps
+- **XGBoost 3.2** and **Prophet 1.3** for demand forecasting
+- **Optuna 4.8** for Bayesian hyperparameter optimisation
+- **MLflow 2.22** for experiment tracking and model registry (deployed on Cloud Run)
+- **SHAP 0.46** for model explainability
+- **scikit-learn** for preprocessing and metrics
 - **Data Version Control (DVC)** for data and model versioning
+
+### Data Quality
 - **Great Expectations** for data validation and schema enforcement
 - **Pandas & NumPy** for data processing and feature engineering
 - **SciPy** for statistical analysis and anomaly detection
@@ -69,34 +92,54 @@ Precomputed demand forecast fields present in the dataset are excluded from trai
 ### Monitoring & Communication
 - **SMTP Email Provider** for automated alerts and notifications
 - **Structured Logging** with comprehensive error tracking
-- **Docker Compose** for containerized deployment
+- **Docker Compose** for containerised deployment
 
 ## Project Structure
 
 ```
 AI-based-Supply-Chain-Management/
-├── dags/
-│   └── data_pipeline.py          # Main Airflow DAG with ETL and monitoring
-├── scripts/
-│   ├── __init__.py
-│   ├── validate.py               # Schema validation with Great Expectations
-│   ├── anomaly.py                # Comprehensive anomaly detection
-│   ├── bias.py                   # Bias detection and mitigation
-│   ├── upload_to_gcp.py          # GCS upload functionality
-│   └── upload_to_mongo.py        # MongoDB data loading
+├── airflow/
+│   ├── dags/
+│   │   └── data_pipeline.py          # Main Airflow DAG (ETL + quality checks)
+│   └── scripts/
+│       ├── extract.py                # MongoDB extraction with fingerprinting
+│       ├── transform.py              # Feature engineering (lags, rolling, calendar)
+│       ├── validate.py               # Schema validation with Great Expectations
+│       ├── anomaly.py                # Anomaly detection (z-score, IQR, gaps)
+│       ├── bias.py                   # Training-time bias detection & mitigation
+│       ├── upload_to_gcp.py          # GCS upload
+│       ├── upload_to_mongo.py        # MongoDB loading
+│       └── github_push.py            # DVC versioning + GitHub push
+├── modelling/
+│   ├── models/
+│   │   ├── xgboost_model.py          # XGBoost training, evaluation, MLflow logging
+│   │   ├── prophet_model.py          # Prophet per-series training and evaluation
+│   │   └── optuna_tuning.py          # Bayesian hyperparameter tuning for both models
+│   ├── scripts/
+│   │   ├── data_splitting.py         # Chronological 80/10/10 split + walk-forward CV
+│   │   ├── select_model.py           # Model comparison and MLflow Production promotion
+│   │   ├── bias_detection.py         # Inference-time bias detection across slices
+│   │   ├── sensitivity_analysis.py   # SHAP analysis + HP sensitivity + model comparison
+│   │   ├── inference.py              # Production inference via MLflow
+│   │   ├── artifact_io.py            # Scaler + series mapping save/load to GCS
+│   │   └── rollback_model.py         # Rollback model to previous MLflow version
+│   ├── Dockerfile                    # Multi-stage build for ML training environment
+│   └── requirements.txt             # ML dependencies
+├── .github/
+│   └── workflows/
+│       ├── ml_pipeline.yml           # CI/CD: tune → train → validate → promote
+│       └── rollback.yml              # Manual model rollback workflow
 ├── tests/
-│   ├── README.md                 # Testing guide and coverage details
-│   └── test_data_pipeline.py     # Unit tests for pipeline components
-├── docker-compose.yaml           # Airflow deployment configuration
-├── run_tests.sh                 # Test runner script
-├── params.yaml                   # Pipeline parameters and thresholds
-├── requirements.txt              # Python dependencies
-└── README.md                     # This documentation
+│   └── test_data_pipeline.py         # Unit tests for pipeline components
+├── docker-compose.yaml               # Airflow stack (API server, scheduler, postgres)
+├── params.yaml                       # Pipeline parameters and thresholds
+├── requirements.txt                  # Root Python dependencies
+└── README.md                         # This documentation
 ```
 
 ## Pipeline Flow
 
-The Airflow DAG implements a comprehensive ETL pipeline with parallel quality checks:
+### Data Pipeline (Airflow — daily)
 
 ```mermaid
 graph TD
@@ -104,23 +147,55 @@ graph TD
     B --> C[Schema Validation]
     B --> D[Anomaly Detection]
     B --> E[Bias Analysis]
-    C --> F[Quality Validation]
+    C --> F[Quality Gate]
     D --> F
-    F --> G[DVC Versioning]
+    F --> G[DVC Versioning + GitHub Push]
     G --> H[Upload to GCS]
     D --> I[Email Alert on Failure]
 ```
 
+### ML Training Pipeline (GitHub Actions — on data change)
+
+```mermaid
+graph TD
+    A[DVC Pull from GCS] --> B[Split Data]
+    B --> C[Tune XGBoost — 50 trials]
+    B --> D[Tune Prophet — 30 trials]
+    C --> E[Train XGBoost]
+    D --> F[Train Prophet]
+    E --> G[Select Best Model]
+    F --> G
+    G --> H[Bias Detection]
+    H --> I[Sensitivity Analysis]
+    I --> J[Promote to MLflow Production]
+```
+
 ### Pipeline Stages
 
-1. **Extract**: Pull raw inventory data from MongoDB
-2. **Transform**: Feature engineering with lag features, rolling statistics, and calendar features
+1. **Extract**: Pull raw inventory data from MongoDB with fingerprint deduplication
+2. **Transform**: Feature engineering — lag features (1/7/14/28 days), rolling stats, EWM, calendar, pricing, inventory
 3. **Validate**: Schema validation and statistics generation using Great Expectations
-4. **Detect**: Comprehensive anomaly detection (missingness, outliers, date gaps)
-5. **Analyze**: Bias detection across multiple data slices
+4. **Detect**: Anomaly detection (missingness, z-score outliers, time series date gaps)
+5. **Analyze**: Training-time bias detection across store, product, seasonality, weather slices
 6. **Version**: Data versioning with DVC and GCS remote storage
-7. **Load**: Upload processed features to Google Cloud Storage
-8. **Alert**: Email notifications for critical anomalies
+7. **Load**: Upload processed features (`features.parquet`) to Google Cloud Storage
+8. **Alert**: Email notifications for critical anomalies and pipeline failures
+
+## Feature Set
+
+29 features used for model training:
+
+| Category | Features |
+|---|---|
+| Lag | `sales_lag_1`, `sales_lag_7`, `sales_lag_14`, `sales_lag_28` |
+| Rolling | `sales_roll_mean_7/14/28`, `sales_roll_std_7`, `sales_ewm_28` |
+| Pricing | `price_vs_competitor`, `effective_price` |
+| Promotions | `Holiday/Promotion`, `Discount`, `discount_x_holiday` |
+| Calendar | `dow`, `month`, `is_weekend` |
+| Inventory | `Inventory Level`, `stockout_flag`, `lead_time_demand` |
+| Supply | `Lead Time Days`, `reorder_event` |
+| Encoded | `Category_enc`, `Region_enc`, `Seasonality_enc`, `series_enc` |
+| Baseline | `y_pred_baseline`, `demand_forecast_lag1` |
 
 ## Configuration
 
@@ -129,19 +204,20 @@ graph TD
 - `GOOGLE_APPLICATION_CREDENTIALS`: Path to GCP service account key
 - `EMAIL_RECIPIENTS`: Comma-separated list of alert recipients
 - `MONGO_URI`: MongoDB connection string
+- `MLFLOW_TRACKING_URI`: MLflow server URL
 - `PARAMS_PATH`: Path to pipeline parameters file
 
 ### Pipeline Parameters (params.yaml)
 ```yaml
 horizon: 1                                    # Forecast horizon in days
-lags: [1, 7, 14]                            # Lag feature periods
-rolling_windows: [7, 14, 28]                # Rolling window sizes
+lags: [1, 7, 14]                              # Lag feature periods
+rolling_windows: [7, 14, 28]                  # Rolling window sizes
 anomaly_thresholds:
-  z_score: 3.0                               # Outlier detection threshold
-  iqr: 1.5                                   # Interquartile range multiplier
-  missingness: 0.02                          # Missing data threshold (2%)
-  date_gap_days: 1                           # Maximum allowed date gap
-output_base_path: /opt/airflow/data          # Data output directory
+  z_score: 3.0                                # Outlier detection threshold
+  iqr: 1.5                                    # Interquartile range multiplier
+  missingness: 0.02                           # Missing data threshold (2%)
+  date_gap_days: 1                            # Maximum allowed date gap
+output_base_path: /opt/airflow/data           # Data output directory
 ```
 
 ## Quick Start
@@ -162,10 +238,8 @@ output_base_path: /opt/airflow/data          # Data output directory
 
 2. **Configure environment variables**
    ```bash
-   # Create .env file with required variables
-   echo "GCS_BUCKET_NAME=your-bucket-name" >> .env
-   echo "GOOGLE_APPLICATION_CREDENTIALS=./gcp-key.json" >> .env
-   echo "EMAIL_RECIPIENTS=admin@example.com" >> .env
+   cp .env.example .env
+   # Edit .env with your credentials
    ```
 
 3. **Place GCP credentials**
@@ -173,18 +247,19 @@ output_base_path: /opt/airflow/data          # Data output directory
    # Download service account key and place as gcp-key.json
    ```
 
-4. **Start the pipeline**
+4. **Start Airflow**
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
 5. **Access Airflow UI**
    - Navigate to `http://localhost:8080`
-   - Login with username: `airflow`, password: `airflow`
+   - Login: `airflow` / `airflow`
+   - Enable and trigger the `supply_chain_pipeline` DAG
 
-6. **Trigger the pipeline**
-   - Enable the `supply_chain_pipeline` DAG
-   - Trigger manually or wait for scheduled execution
+6. **Trigger ML training** (after data is in GCS)
+   - Push a `.dvc` file change to `main` or `modelling` branch, or
+   - Go to GitHub Actions → "ML Pipeline" → "Run workflow"
 
 ## Monitoring & Alerting
 
@@ -196,150 +271,86 @@ The pipeline automatically detects three types of anomalies:
 3. **Date Gaps**: Missing days in time series per store-product combination
 
 ### Email Alerts
-Critical anomalies trigger automated email alerts containing:
-- Pipeline execution details
-- Anomaly summary and counts
-- Links to detailed reports
-- Airflow dashboard access
+Critical anomalies trigger automated email alerts containing pipeline execution details, anomaly summaries, and links to detailed reports.
 
-### Logging
-Comprehensive logging throughout the pipeline includes:
-- Data quality metrics
-- Feature engineering statistics
-- Anomaly detection results
-- Error tracking and troubleshooting information
+### GitHub Actions Summaries
+Each pipeline run writes a structured summary to the GitHub Actions Summary tab — best model name and metrics on success, branch/commit/actor on failure, and a separate warning if bias detection flags disparities.
 
 ## Testing & Validation
 
 ### Unit Tests
 Comprehensive unit test suite covering all pipeline components:
 - **42 total tests** across extract, transform, load, integration, and edge cases
-- **Test Coverage**: Extract (6), Transform (25), Load (4), Integration (4), Edge Cases (3)
 - **Run Tests**: `./run_tests.sh` or `python3 -m pytest tests/test_data_pipeline.py -v`
 
-**Note**: Testing is currently separate from the DAG to maintain pipeline performance. CI/CD testing via GitHub Actions will be implemented soon to automate test execution on code changes.
+### Model Validation
+- Walk-forward cross-validation (5 folds, 14-day gap) on training data
+- Hold-out test set evaluation with MAE, RMSE, MAPE, R²
+- 5% improvement gate before promoting a new model to Production
 
 ### Schema Validation
-Using Great Expectations, the pipeline validates:
-- Column existence and data types
-- Null value constraints
-- Value ranges and sets
-- Uniqueness constraints
+Using Great Expectations: column existence, data types, null constraints, value ranges, uniqueness.
 
 ### Bias Detection
-Automated bias analysis across:
-- Store ID and Product ID slices
-- Weather conditions and seasonality
-- Holiday and promotion periods
-- Performance metrics by segment
-
-### Data Quality Reports
-Generated reports include:
-- Schema statistics and validation results
-- Anomaly detection summaries
-- Bias analysis with mitigation recommendations
-- Feature engineering metrics
+- **Training time**: Store, Product, Weather, Seasonality, Promotions slices
+- **Inference time**: Category, Region, Seasonality — >25% MAE disparity flags a CI failure
 
 ## Evaluation Criteria Compliance
 
-This implementation addresses all specified evaluation criteria:
-
 ### ✅ 1. Proper Documentation
-- Comprehensive README with architecture overview
+- Comprehensive README with architecture overview and pipeline diagrams
 - Well-commented code with inline documentation
-- Structured folder organization following MLOps best practices
 
 ### ✅ 2. Modular Syntax and Code
-- Separate modules for validation, anomaly detection, bias analysis
-- Reusable functions with clear interfaces
+- Separate modules for each concern: extraction, transformation, validation, anomaly, bias, training, inference
 - Configuration-driven pipeline parameters
 
 ### ✅ 3. Pipeline Orchestration (Airflow DAGs)
-- Complete Airflow DAG implementation with logical task flow
-- Proper error handling and retry mechanisms
-- Parallel execution for efficiency
+- Complete Airflow DAG with logical task flow, error handling, and parallel execution
 
 ### ✅ 4. Tracking and Logging
-- Comprehensive logging throughout all pipeline stages
-- Task tracking with Airflow metadata
-- Error alerts and notifications via email
+- MLflow experiment tracking: hyperparameters, metrics, artifacts, model versions per run
+- Structured logging and email alerts throughout all pipeline stages
 
 ### ✅ 5. Data Version Control (DVC)
-- Full DVC integration with GCS remote storage
-- Data versioning alongside code in Git
-- Automated data tracking and pushing
+- Full DVC integration with GCS remote storage; automated data tracking and push on each run
 
-### ✅ 6. Pipeline Flow Optimization
-- Parallel task execution where possible
-- Efficient data processing with optimized transformations
-- Gantt chart visualization available in Airflow UI
+### ✅ 6. Pipeline Flow Optimisation
+- Parallel validation tasks (schema, anomaly, bias run concurrently)
+- Resumable Optuna studies across CI runs via SQLite artifact
 
 ### ✅ 7. Schema and Statistics Generation
-- Great Expectations integration for schema validation
-- Automated statistics generation for all features
-- Data quality metrics and reporting
+- Great Expectations integration with automated statistics for all features
 
 ### ✅ 8. Anomaly Detection and Alert Generation
-- Comprehensive anomaly detection (missingness, outliers, date gaps)
-- Automated email alerts for critical anomalies
-- Configurable thresholds and severity levels
+- Missingness, outlier, and date-gap detection with configurable thresholds and email alerts
 
 ### ✅ 9. Bias Detection and Mitigation
-- Bias analysis across multiple data slices
-- Sample weight calculation for mitigation
-- Performance analysis by demographic segments
+- Training-time and inference-time bias analysis with automated mitigation recommendations
 
 ### ✅ 10. Test Modules
-- Modular design enables easy unit testing
-- Validation functions can be tested independently
-- Anomaly and bias detection have clear testable interfaces
+- 42 unit tests covering extract, transform, load, integration, and edge cases
 
 ### ✅ 11. Reproducibility
-- Docker Compose for consistent environment
-- Parameter-driven configuration
-- Version-controlled data and dependencies
+- Docker Compose for Airflow, multi-stage Dockerfile for ML training, DVC-versioned data
 
 ### ✅ 12. Error Handling and Logging
-- Robust error handling at each pipeline stage
-- Comprehensive logging for troubleshooting
-- Automated alerts for pipeline failures
+- Robust error handling at each stage with structured logging and automated pipeline failure alerts
 
-## Advanced Features
+### ✅ 13. Model Development
+- Two-model strategy (XGBoost + Prophet), Bayesian tuning, walk-forward CV, SHAP analysis, MLflow registry
 
-### Feature Engineering
-- **Lag Features**: 1-day, 7-day, and 14-day sales lags
-- **Rolling Statistics**: 7, 14, and 28-day rolling means
-- **Exponential Weighted Moving**: 28-day EWM for trend detection
-- **Calendar Features**: Day of week and month encoding
-- **Baseline Predictions**: Lag-based baseline for model comparison
+### ✅ 14. CI/CD for Model Training
+- GitHub Actions pipeline: data pull → split → tune → train → bias check → promote, triggered on data changes
 
-### Bias Mitigation Strategies
-- **Sample Weighting**: Inverse frequency weighting by store
-- **Performance Analysis**: MAE and MAPE by data slices
-- **Recommendation Engine**: Automated mitigation suggestions
-- **Priority Classification**: High/medium/low priority bias issues
+## Work in Progress
 
-### Anomaly Detection Algorithms
-- **Z-Score Detection**: Statistical outlier identification
-- **Percentile Method**: P99.9 percentile-based outlier detection
-- **Missingness Analysis**: Null percentage spike detection
-- **Time Series Gap Detection**: Missing day identification per series
+The following components are under active development and will be integrated into the main branch:
 
-## API Reference
-
-### Core Functions
-
-#### `validate.generate_schema_and_stats(features_path, output_dir)`
-Generates schema validation and statistics using Great Expectations.
-
-#### `anomaly.generate_anomaly_report(features_path, output_dir, thresholds)`
-Comprehensive anomaly detection with configurable thresholds.
-
-#### `bias.generate_bias_report(features_path, output_dir, slice_features)`
-Bias analysis across specified data slices with mitigation recommendations.
-
+- **Backend API**: REST API layer connecting the frontend to model inference and inventory data
+- **Frontend**: Chat-based UI for demand forecasting queries and inventory management
+- **MCP-based Inference Agent**: LangGraph agent with two MCP tools — one for inventory management queries (MongoDB) and one for triggering model predictions (MLflow Production model). Both are conversational: users ask questions in natural language and receive demand forecasts or inventory insights in response.
 
 ## License
 
 This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
-
