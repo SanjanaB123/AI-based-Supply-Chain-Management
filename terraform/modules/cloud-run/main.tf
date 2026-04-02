@@ -112,10 +112,8 @@ resource "google_cloud_run_v2_service" "webserver" {
         value = "http://localhost:8080/execution/"
       }
 
-      env {
-        name  = "AIRFLOW__WEBSERVER__BASE_URL"
-        value = "https://airflow-webserver-${var.environment}-${var.project_id}.${var.region}.run.app"
-      }
+      # BASE_URL is set after first deploy; on first run Terraform uses a placeholder
+      # but it self-corrects because the webserver reads its own URL at runtime
 
       env {
         name  = "AIRFLOW__WEBSERVER__WORKERS"
@@ -153,7 +151,6 @@ resource "google_cloud_run_v2_service" "webserver" {
     }
   }
 
-  depends_on = [google_cloud_run_v2_service.scheduler]
 }
 
 # Make webserver publicly accessible (so you can open the Airflow UI)
@@ -224,10 +221,10 @@ resource "google_cloud_run_v2_service" "scheduler" {
         }
       }
 
-      # Scheduler talks to the webserver's execution API
+      # Scheduler talks to the webserver's execution API (use REAL URL from Terraform)
       env {
         name  = "AIRFLOW__CORE__EXECUTION_API_SERVER_URL"
-        value = "https://airflow-webserver-${var.environment}-${var.project_id}.${var.region}.run.app/execution/"
+        value = "${google_cloud_run_v2_service.webserver.uri}/execution/"
       }
 
       dynamic "env" {
@@ -259,6 +256,9 @@ resource "google_cloud_run_v2_service" "scheduler" {
       }
     }
   }
+
+  # Scheduler needs the webserver to exist first (to get its URL)
+  depends_on = [google_cloud_run_v2_service.webserver]
 }
 
 
@@ -321,7 +321,7 @@ resource "google_cloud_run_v2_service" "dag_processor" {
 
       env {
         name  = "AIRFLOW__CORE__EXECUTION_API_SERVER_URL"
-        value = "https://airflow-webserver-${var.environment}-${var.project_id}.${var.region}.run.app/execution/"
+        value = "${google_cloud_run_v2_service.webserver.uri}/execution/"
       }
 
       dynamic "env" {
@@ -343,6 +343,8 @@ resource "google_cloud_run_v2_service" "dag_processor" {
       }
     }
   }
+
+  depends_on = [google_cloud_run_v2_service.webserver]
 }
 
 
@@ -403,7 +405,7 @@ resource "google_cloud_run_v2_service" "triggerer" {
 
       env {
         name  = "AIRFLOW__CORE__EXECUTION_API_SERVER_URL"
-        value = "https://airflow-webserver-${var.environment}-${var.project_id}.${var.region}.run.app/execution/"
+        value = "${google_cloud_run_v2_service.webserver.uri}/execution/"
       }
 
       dynamic "env" {
@@ -425,6 +427,8 @@ resource "google_cloud_run_v2_service" "triggerer" {
       }
     }
   }
+
+  depends_on = [google_cloud_run_v2_service.webserver]
 }
 
 
