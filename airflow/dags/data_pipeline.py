@@ -177,10 +177,9 @@ def version_with_dvc(features_path: str, **context) -> str:
         return features_path
 
     dvc_file      = features_path + ".dvc"
-    dvc_cfg       = str(dvc_root / ".dvc" / "config")
     gitignore     = str(Path(features_path).parent / ".gitignore")
     commit_msg    = f"Update DVC pointer: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
-    files_to_push = [dvc_file, dvc_cfg]
+    files_to_push = [dvc_file]
     if Path(gitignore).exists():
         files_to_push.append(gitignore)
 
