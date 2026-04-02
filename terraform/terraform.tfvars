@@ -1,0 +1,6 @@
+project_id      = "mlops-project-488302"
+region          = "us-central1"
+environment     = "prod"
+db_tier         = "db-f1-micro"
+github_repo     = "SanjanaB123/AI-based-Supply-Chain-Management"
+gcs_bucket_name = "supply-chain-pipeline" 
