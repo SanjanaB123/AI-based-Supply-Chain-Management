@@ -7,11 +7,9 @@ credentials/
 /data/processed/
 /data/features/
 /data/
-**.dvc/config
-*.dvc/tmp
-*.dvc/cache
+.dvc/tmp
+.dvc/cache
 config/
-.dvc/
 .env
 __pycache__/
 *.py[cod]
@@ -53,7 +51,6 @@ venv/
 gcp-key.json
 data/
 config/
-.dvc/
 logs/
 plugins/
 gcp-key.json
