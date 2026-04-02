@@ -9,4 +9,3 @@ google-cloud-secret-manager
 PyYAML==6.0.3
 python-dotenv==1.2.1
 scipy
-numpy==2.4.2
