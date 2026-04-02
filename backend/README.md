@@ -1,16 +1,37 @@
 # Inventory Dashboard Backend
 
-FastAPI backend serving 6 endpoints for the inventory dashboard. Data source: `data/better_inventory_snapshot.csv` (5 stores, 20 products each, 100 rows total).
+FastAPI backend serving 6 endpoints for the inventory dashboard **with integrated AI chat capabilities**. Data source: **MongoDB Atlas** `inventory_forecasting.inventory_snapshot` collection (5 stores, 20 products each, 100 rows total).
 
 ## Quick Start
 
 ```bash
 cd backend
 pip install -r requirements.txt
+
+# Set environment variables
+export MONGO_URI="mongodb+srv://your-connection-string"
+export MONGO_DB="inventory_forecasting"  # optional, defaults to this
+export ANTHROPIC_API_KEY="your-anthropic-api-key"  # for AI chat
+export MCP_SERVER_URL="https://your-mcp-server-url/mcp"  # optional
+
 uvicorn main:app --reload --port 8000
 ```
 
 Docs at: `http://localhost:8000/docs`
+
+---
+
+## Features
+
+### 📊 Inventory Analytics (6 Endpoints)
+- Stock levels, sell-through rates, days of supply
+- Stock health breakdown, lead time risk analysis
+- Shrinkage tracking and store summaries
+
+### 🤖 AI Chat Assistant (2 Endpoints)
+- Natural language queries about inventory
+- Powered by Claude Haiku + SetFit classification
+- Connects to MCP server for real-time data access
 
 ---
 
@@ -341,3 +362,61 @@ interface ShrinkageResponse {
 | Household | Orange/Amber |
 | Personal Care | Purple/Lavender |
 | Snacks | Red/Coral |
+
+---
+
+## 🤖 AI Chat Endpoints
+
+### `POST /api/chat`
+
+**AI-powered chat interface for natural language inventory queries.**
+
+```json
+// Request
+{
+  "message": "What products need restocking at store S001?",
+  "username": "user123"
+}
+
+// Response
+{
+  "response": "Based on current inventory levels, I found 3 products at store S001 that need restocking: P0008 (Household) with 222 units, P0010 (Snacks) with 335 units, and P0019 (Personal Care) with 496 units.",
+  "agent": "ai-assistant"
+}
+```
+
+### `GET /api/ai-status`
+
+**Check if AI chat service is available.**
+
+```json
+{
+  "status": "online",
+  "ai_enabled": true,
+  "model_loaded": true,
+  "mcp_server": "https://your-mcp-server-url/mcp"
+}
+```
+
+---
+
+## Deployment Architecture
+
+This backend is designed for **separate deployment** of components:
+
+```
+backend/
+├── main.py              # Integrated FastAPI app (Inventory + AI Chat)
+├── api/                 # AI Chat service (separate deployment)
+│   ├── main.py
+│   ├── Dockerfile
+│   └── requirements.txt
+├── mcp/                 # MCP Server (separate deployment)
+│   ├── server.py
+│   ├── Dockerfile
+│   └── requirements.txt
+└── training/            # ML Model training pipeline
+```
+
+**Development**: Run integrated `main.py` for full functionality  
+**Production**: Deploy `api/` and `mcp/` separately for scalability

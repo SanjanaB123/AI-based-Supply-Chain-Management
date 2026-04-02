@@ -1,241 +1,87 @@
-from fastapi import FastAPI, Query, HTTPException
+import os
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-import pandas as pd
-import os
+from dotenv import load_dotenv
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
-from database import engine, Base
+from database import init_db
 from routes_auth import router as auth_router
+from routes_inventory import router as inventory_router
+from routes_chat import router as chat_router, init_ai
 
-# Create DB tables on startup
-Base.metadata.create_all(bind=engine)
+# Load .env from root directory
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
-app = FastAPI(title="Inventory Dashboard API", version="1.0.0")
+log = logging.getLogger(__name__)
 
+# Initialize MongoDB indexes
+try:
+    init_db()
+    log.info("MongoDB indexes initialized successfully")
+except Exception as e:
+    log.warning(f"Failed to initialize MongoDB indexes: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        await init_ai()
+    except Exception as e:
+        log.error(f"Error initializing AI/ML components: {e}")
+        log.error("Chat functionality will be disabled.")
+    yield
+
+
+app = FastAPI(
+    title="Inventory Dashboard API",
+    version="1.0.0",
+    description="Integrated Inventory Dashboard with AI Chat capabilities",
+    lifespan=lifespan,
+)
+
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Mount auth routes
+# Mount routers
 app.include_router(auth_router)
+app.include_router(inventory_router)
+app.include_router(chat_router)
 
-# Serve the test frontend
+# Static files
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
+@app.get("/health")
+def health():
+    """Top-level health check for Cloud Run / load balancers."""
+    from routes_chat import graph
+    return {
+        "status": "ok",
+        "ai_enabled": graph is not None,
+    }
+
+
 @app.get("/auth-test.html")
 def serve_auth_test():
     return FileResponse(os.path.join(STATIC_DIR, "auth-test.html"))
-
-
-DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "better_inventory_snapshot.csv")
-N_DAYS = 365  # period over which Total Units Sold is measured
-
-CRITICAL_THRESHOLD = 14   # days of supply < 14 → critical
-LOW_THRESHOLD = 45         # days of supply < 45 → low, else healthy
-
-df = pd.read_csv(DATA_PATH)
-# strip any whitespace from column names
-df.columns = df.columns.str.strip()
-
-VALID_STORES = sorted(df["Store ID"].unique().tolist())
-
-
-def _filter_store(store_id: str) -> pd.DataFrame:
-    if store_id not in VALID_STORES:
-        raise HTTPException(status_code=404, detail=f"Store '{store_id}' not found. Valid stores: {VALID_STORES}")
-    return df[df["Store ID"] == store_id].copy()
-
-
-def _compute_derived(frame: pd.DataFrame) -> pd.DataFrame:
-    frame["daily_sales"] = frame["Total Units Sold"] / N_DAYS
-    frame["days_of_supply"] = (frame["Current Stock"] / frame["daily_sales"]).round(2)
-    frame["days_of_supply"] = frame["days_of_supply"].fillna(0)
-    frame["sell_through_rate"] = ((frame["Total Units Sold"] / frame["Total Units Received"]) * 100).round(2)
-    frame["shrinkage"] = frame["Total Units Received"] - frame["Total Units Sold"] - frame["Current Stock"]
-
-    def health(dos):
-        if dos < CRITICAL_THRESHOLD:
-            return "critical"
-        elif dos < LOW_THRESHOLD:
-            return "low"
-        return "healthy"
-
-    frame["stock_health"] = frame["days_of_supply"].apply(health)
-    return frame
-
-
-# ──────────────────────────────────────────────
-# GET /api/stores  — list all store IDs
-# ──────────────────────────────────────────────
-@app.get("/api/stores")
-def get_stores():
-    return {"stores": VALID_STORES}
-
-
-# ──────────────────────────────────────────────
-# 1. Stock Levels  — horizontal bar chart data
-# ──────────────────────────────────────────────
-@app.get("/api/stock-levels")
-def stock_levels(store: str = Query(..., description="Store ID, e.g. S001")):
-    frame = _compute_derived(_filter_store(store))
-    frame = frame.sort_values("Current Stock")
-
-    total_stock = int(frame["Current Stock"].sum())
-    counts = frame["stock_health"].value_counts().to_dict()
-
-    products = []
-    for _, r in frame.iterrows():
-        products.append({
-            "product_id": r["Product ID"],
-            "category": r["Category"],
-            "current_stock": int(r["Current Stock"]),
-            "stock_health": r["stock_health"],
-        })
-
-    return {
-        "store": store,
-        "total_stock": total_stock,
-        "summary": {
-            "critical": counts.get("critical", 0),
-            "low": counts.get("low", 0),
-            "healthy": counts.get("healthy", 0),
-        },
-        "products": products,
-    }
-
-
-# ──────────────────────────────────────────────
-# 2. Sell-Through Rate  — horizontal bar chart
-# ──────────────────────────────────────────────
-@app.get("/api/sell-through")
-def sell_through(store: str = Query(..., description="Store ID, e.g. S001")):
-    frame = _compute_derived(_filter_store(store))
-    frame = frame.sort_values("sell_through_rate", ascending=False)
-
-    products = []
-    for _, r in frame.iterrows():
-        products.append({
-            "product_id": r["Product ID"],
-            "category": r["Category"],
-            "sell_through_rate": float(r["sell_through_rate"]),
-            "total_sold": int(r["Total Units Sold"]),
-            "total_received": int(r["Total Units Received"]),
-        })
-
-    return {
-        "store": store,
-        "products": products,
-    }
-
-
-# ──────────────────────────────────────────────
-# 3. Days of Supply  — bar chart + color threshold
-# ──────────────────────────────────────────────
-@app.get("/api/days-of-supply")
-def days_of_supply(store: str = Query(..., description="Store ID, e.g. S001")):
-    frame = _compute_derived(_filter_store(store))
-    frame = frame.sort_values("days_of_supply")
-
-    products = []
-    for _, r in frame.iterrows():
-        products.append({
-            "product_id": r["Product ID"],
-            "category": r["Category"],
-            "days_of_supply": float(r["days_of_supply"]),
-            "stock_health": r["stock_health"],
-            "current_stock": int(r["Current Stock"]),
-            "daily_sales": round(float(r["daily_sales"]), 2),
-        })
-
-    return {
-        "store": store,
-        "thresholds": {
-            "critical_below": CRITICAL_THRESHOLD,
-            "low_below": LOW_THRESHOLD,
-        },
-        "products": products,
-    }
-
-
-# ──────────────────────────────────────────────
-# 4. Stock Health Breakdown  — donut chart
-# ──────────────────────────────────────────────
-@app.get("/api/stock-health")
-def stock_health(store: str = Query(..., description="Store ID, e.g. S001")):
-    frame = _compute_derived(_filter_store(store))
-    counts = frame["stock_health"].value_counts().to_dict()
-    total = len(frame)
-
-    breakdown = []
-    for status in ["critical", "low", "healthy"]:
-        count = counts.get(status, 0)
-        breakdown.append({
-            "status": status,
-            "count": count,
-            "percentage": round((count / total) * 100, 1) if total else 0,
-        })
-
-    return {
-        "store": store,
-        "total_products": total,
-        "breakdown": breakdown,
-    }
-
-
-# ──────────────────────────────────────────────
-# 5. Lead Time vs Days of Supply  — scatter plot
-# ──────────────────────────────────────────────
-@app.get("/api/lead-time-risk")
-def lead_time_risk(store: str = Query(..., description="Store ID, e.g. S001")):
-    frame = _compute_derived(_filter_store(store))
-
-    products = []
-    for _, r in frame.iterrows():
-        products.append({
-            "product_id": r["Product ID"],
-            "category": r["Category"],
-            "lead_time_days": int(r["Lead Time Days"]),
-            "days_of_supply": float(r["days_of_supply"]),
-            "stock_health": r["stock_health"],
-        })
-
-    return {
-        "store": store,
-        "products": products,
-    }
-
-
-# ──────────────────────────────────────────────
-# 6. Shrinkage / Loss  — table
-# ──────────────────────────────────────────────
-@app.get("/api/shrinkage")
-def shrinkage(store: str = Query(..., description="Store ID, e.g. S001")):
-    frame = _compute_derived(_filter_store(store))
-    frame = frame.sort_values("shrinkage", ascending=False)
-
-    products = []
-    for _, r in frame.iterrows():
-        products.append({
-            "product_id": r["Product ID"],
-            "category": r["Category"],
-            "total_received": int(r["Total Units Received"]),
-            "total_sold": int(r["Total Units Sold"]),
-            "current_stock": int(r["Current Stock"]),
-            "shrinkage": int(r["shrinkage"]),
-        })
-
-    total_shrinkage = int(frame["shrinkage"].sum())
-
-    return {
-        "store": store,
-        "total_shrinkage": total_shrinkage,
-        "products": products,
-    }
