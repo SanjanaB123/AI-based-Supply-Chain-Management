@@ -92,7 +92,7 @@ resource "google_cloud_run_v2_service" "webserver" {
       resources {
         limits = {
           cpu    = "1"
-          memory = "2Gi"
+          memory = "4Gi"
         }
         cpu_idle = false
       }
@@ -115,6 +115,11 @@ resource "google_cloud_run_v2_service" "webserver" {
       env {
         name  = "AIRFLOW__WEBSERVER__BASE_URL"
         value = "https://airflow-webserver-${var.environment}-${var.project_id}.${var.region}.run.app"
+      }
+
+      env {
+        name  = "AIRFLOW__WEBSERVER__WORKERS"
+        value = "1"
       }
 
       # Secret environment variables (read from Secret Manager)
@@ -141,8 +146,8 @@ resource "google_cloud_run_v2_service" "webserver" {
           path = "/api/v2/version"
           port = 8080
         }
-        initial_delay_seconds = 60
-        period_seconds        = 10
+        initial_delay_seconds = 90
+        period_seconds        = 15
         failure_threshold     = 30
       }
     }
