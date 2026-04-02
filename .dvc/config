@@ -1,2 +1,5 @@
 [core]
     no_scm = True
+    remote = storage
+[remote "storage"]
+    url = gs://supply-chain-pipeline/dvc
