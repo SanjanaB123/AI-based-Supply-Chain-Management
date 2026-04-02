@@ -81,8 +81,9 @@ resource "google_cloud_run_v2_service" "webserver" {
 
     containers {
       image   = var.airflow_image
-      command = ["airflow"]
+      command = ["/opt/airflow/entrypoint.sh"]
       args    = ["api-server", "--port", "8080"]
+
 
       ports {
         container_port = 8080
@@ -140,9 +141,9 @@ resource "google_cloud_run_v2_service" "webserver" {
           path = "/api/v2/version"
           port = 8080
         }
-        initial_delay_seconds = 30
+        initial_delay_seconds = 60
         period_seconds        = 10
-        failure_threshold     = 10
+        failure_threshold     = 30
       }
     }
   }
@@ -192,8 +193,8 @@ resource "google_cloud_run_v2_service" "scheduler" {
 
     containers {
       image   = var.airflow_image
-      command = ["/bin/bash"]
-      args    = ["-c", "airflow scheduler & python -m http.server 8080 --bind 0.0.0.0"]
+      command = ["/opt/airflow/entrypoint.sh"]
+      args    = ["scheduler"]
 
 
       # Scheduler needs a port for health checks even though it's not HTTP
@@ -288,8 +289,9 @@ resource "google_cloud_run_v2_service" "dag_processor" {
 
     containers {
       image   = var.airflow_image
-      command = ["/bin/bash"]
-      args    = ["-c", "airflow dag-processor & python -m http.server 8080 --bind 0.0.0.0"]
+      command = ["/opt/airflow/entrypoint.sh"]
+      args    = ["dag-processor"]
+
 
 
       ports {
@@ -371,9 +373,8 @@ resource "google_cloud_run_v2_service" "triggerer" {
 
     containers {
       image   = var.airflow_image
-      command = ["/bin/bash"]
-      args    = ["-c", "airflow dag-processor & python -m http.server 8080 --bind 0.0.0.0"]
-
+      command = ["/opt/airflow/entrypoint.sh"]
+      args    = ["triggerer"]
 
       ports {
         container_port = 8080
@@ -452,20 +453,9 @@ resource "google_cloud_run_v2_job" "airflow_init" {
       containers {
         image = var.airflow_image
 
-        command = ["/bin/bash"]
-        args = [
-          "-c",
-          <<-EOT
-            airflow db migrate && \
-            airflow users create \
-              --username admin \
-              --password admin \
-              --firstname Admin \
-              --lastname User \
-              --role Admin \
-              --email admin@example.com || true
-          EOT
-        ]
+        command = ["/opt/airflow/entrypoint.sh"]
+        args    = ["db-init"]
+
 
         resources {
           limits = {
