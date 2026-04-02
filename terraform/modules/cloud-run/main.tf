@@ -246,9 +246,9 @@ resource "google_cloud_run_v2_service" "scheduler" {
           path = "/health"
           port = 8974
         }
-        initial_delay_seconds = 30
+        initial_delay_seconds = 60
         period_seconds        = 10
-        failure_threshold     = 10
+        failure_threshold     = 20
       }
     }
   }
@@ -296,7 +296,7 @@ resource "google_cloud_run_v2_service" "dag_processor" {
 
       resources {
         limits = {
-          cpu    = "0.5"
+          cpu    = "1"
           memory = "1Gi"
         }
         cpu_idle = false
@@ -378,7 +378,7 @@ resource "google_cloud_run_v2_service" "triggerer" {
 
       resources {
         limits = {
-          cpu    = "0.5"
+          cpu    = "1"
           memory = "1Gi"
         }
         cpu_idle = false
