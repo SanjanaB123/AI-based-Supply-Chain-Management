@@ -192,8 +192,9 @@ resource "google_cloud_run_v2_service" "scheduler" {
 
     containers {
       image   = var.airflow_image
-      command = ["airflow"]
-      args    = ["scheduler"]
+      command = ["/bin/bash"]
+      args    = ["-c", "airflow scheduler & python -m http.server 8080 --bind 0.0.0.0"]
+
 
       # Scheduler needs a port for health checks even though it's not HTTP
       ports {
@@ -287,8 +288,9 @@ resource "google_cloud_run_v2_service" "dag_processor" {
 
     containers {
       image   = var.airflow_image
-      command = ["airflow"]
-      args    = ["dag-processor"]
+      command = ["/bin/bash"]
+      args    = ["-c", "airflow dag-processor & python -m http.server 8080 --bind 0.0.0.0"]
+
 
       ports {
         container_port = 8080
@@ -369,8 +371,9 @@ resource "google_cloud_run_v2_service" "triggerer" {
 
     containers {
       image   = var.airflow_image
-      command = ["airflow"]
-      args    = ["triggerer"]
+      command = ["/bin/bash"]
+      args    = ["-c", "airflow dag-processor & python -m http.server 8080 --bind 0.0.0.0"]
+
 
       ports {
         container_port = 8080
