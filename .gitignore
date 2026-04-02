@@ -56,7 +56,6 @@ config/
 .dvc/
 logs/
 plugins/
-params.yaml
 gcp-key.json
 .gitattributes
 temp_features.parquet
