@@ -12,8 +12,15 @@ import mlflow
 import mlflow.pyfunc
 from datetime import datetime
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from root .env (two levels up from mcp/)
+_root_env = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
+load_dotenv(_root_env)
+
+# Resolve GOOGLE_APPLICATION_CREDENTIALS to an absolute path if it's relative
+_gcp_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+if _gcp_creds and not os.path.isabs(_gcp_creds):
+    _abs_creds = os.path.join(os.path.dirname(__file__), '..', '..', _gcp_creds)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath(_abs_creds)
 
 # Initialize FastMCP server
 PORT = int(os.getenv("PORT", 8000))
@@ -27,7 +34,7 @@ collection = db["inventory_snapshot"]
 
 # --- MLflow & GCS config ---
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
-GCS_BUCKET = os.getenv("GCS_BUCKET")
+GCS_BUCKET = os.getenv("GCS_BUCKET_NAME")
 
 XGBOOST_MODEL_NAME = "xgboost-supply-chain"
 PROPHET_MODEL_NAME = "prophet-supply-chain"
@@ -231,21 +238,20 @@ def predict_demand(
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
         mlflow_client = mlflow.tracking.MlflowClient()
 
-        # 1. Detect which model is in Production (XGBoost takes priority if both are)
+        # 1. Detect which model has the @champion alias (XGBoost takes priority)
         model_name = None
         prod_version = None
         for name in [XGBOOST_MODEL_NAME, PROPHET_MODEL_NAME]:
             try:
-                versions = mlflow_client.get_latest_versions(name, stages=["Production"])
-                if versions:
-                    model_name = name
-                    prod_version = versions[0].version
-                    break
+                mv = mlflow_client.get_model_version_by_alias(name, "champion")
+                model_name = name
+                prod_version = mv.version
+                break
             except Exception:
                 continue
 
         if not model_name:
-            return {"status": "error", "message": "No model found in Production stage in MLflow."}
+            return {"status": "error", "message": "No model found with @champion alias in MLflow registry."}
 
         # 2. Derive time features from target_date
         dt = datetime.strptime(target_date, "%Y-%m-%d")
@@ -312,7 +318,7 @@ def predict_demand(
             input_df[cols_to_scale] = scaler.transform(input_df[cols_to_scale])
 
             # 6a. Load model and predict
-            model = mlflow.pyfunc.load_model(f"models:/{XGBOOST_MODEL_NAME}/Production")
+            model = mlflow.pyfunc.load_model(f"models:/{XGBOOST_MODEL_NAME}@champion")
             prediction = float(max(0.0, model.predict(input_df)[0]))
 
             return {
@@ -327,7 +333,7 @@ def predict_demand(
 
         else:
             # 3b. Prophet path — load per-series Production model
-            model = mlflow.pyfunc.load_model(f"models:/{PROPHET_MODEL_NAME}/Production")
+            model = mlflow.pyfunc.load_model(f"models:/{PROPHET_MODEL_NAME}@champion")
 
             # 4b. Build Prophet input: ds + 9 regressors (lag/rolling fields are ignored)
             future_df = pd.DataFrame({

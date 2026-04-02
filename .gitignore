@@ -1,4 +1,3 @@
-*.json
 *-key.json
 *service-account*.json
 .env

@@ -6,7 +6,10 @@ from typing import TypedDict, Annotated, List
 
 import torch
 from pydantic import BaseModel
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from clerk_auth import get_current_user
+from models import ClerkUser
 from setfit import SetFitModel
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
@@ -151,7 +154,7 @@ async def init_ai():
 # --- Endpoints ---
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, _user: ClerkUser = Depends(get_current_user)):
     """AI chat endpoint for inventory management queries."""
     if not graph:
         raise HTTPException(status_code=503, detail="AI chat service not initialized")
@@ -181,7 +184,7 @@ async def chat(request: ChatRequest):
 
 
 @router.get("/ai-status")
-def ai_status():
+def ai_status(_user: ClerkUser = Depends(get_current_user)):
     """Check if AI chat service is available."""
     ai_ready = graph is not None
     return {

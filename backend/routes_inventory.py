@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException
 import pandas as pd
 import os
 import logging
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
+
+from clerk_auth import get_current_user
+from models import ClerkUser
 
 router = APIRouter(prefix="/api", tags=["Inventory"])
 
@@ -85,12 +88,12 @@ def _compute_derived(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 @router.get("/stores")
-def get_stores():
+def get_stores(_user: ClerkUser = Depends(get_current_user)):
     return {"stores": VALID_STORES}
 
 
 @router.get("/stock-levels")
-def stock_levels(store: str = Query(..., description="Store ID, e.g. S001")):
+def stock_levels(store: str = Query(..., description="Store ID, e.g. S001"), _user: ClerkUser = Depends(get_current_user)):
     frame = _compute_derived(_filter_store(store))
     frame = frame.sort_values("Current Stock")
 
@@ -119,7 +122,7 @@ def stock_levels(store: str = Query(..., description="Store ID, e.g. S001")):
 
 
 @router.get("/sell-through")
-def sell_through(store: str = Query(..., description="Store ID, e.g. S001")):
+def sell_through(store: str = Query(..., description="Store ID, e.g. S001"), _user: ClerkUser = Depends(get_current_user)):
     frame = _compute_derived(_filter_store(store))
     frame = frame.sort_values("sell_through_rate", ascending=False)
 
@@ -137,7 +140,7 @@ def sell_through(store: str = Query(..., description="Store ID, e.g. S001")):
 
 
 @router.get("/days-of-supply")
-def days_of_supply(store: str = Query(..., description="Store ID, e.g. S001")):
+def days_of_supply(store: str = Query(..., description="Store ID, e.g. S001"), _user: ClerkUser = Depends(get_current_user)):
     frame = _compute_derived(_filter_store(store))
     frame = frame.sort_values("days_of_supply")
 
@@ -160,7 +163,7 @@ def days_of_supply(store: str = Query(..., description="Store ID, e.g. S001")):
 
 
 @router.get("/stock-health")
-def stock_health(store: str = Query(..., description="Store ID, e.g. S001")):
+def stock_health(store: str = Query(..., description="Store ID, e.g. S001"), _user: ClerkUser = Depends(get_current_user)):
     frame = _compute_derived(_filter_store(store))
     counts = frame["stock_health"].value_counts().to_dict()
     total = len(frame)
@@ -178,7 +181,7 @@ def stock_health(store: str = Query(..., description="Store ID, e.g. S001")):
 
 
 @router.get("/lead-time-risk")
-def lead_time_risk(store: str = Query(..., description="Store ID, e.g. S001")):
+def lead_time_risk(store: str = Query(..., description="Store ID, e.g. S001"), _user: ClerkUser = Depends(get_current_user)):
     frame = _compute_derived(_filter_store(store))
 
     products = []
@@ -195,7 +198,7 @@ def lead_time_risk(store: str = Query(..., description="Store ID, e.g. S001")):
 
 
 @router.get("/shrinkage")
-def shrinkage(store: str = Query(..., description="Store ID, e.g. S001")):
+def shrinkage(store: str = Query(..., description="Store ID, e.g. S001"), _user: ClerkUser = Depends(get_current_user)):
     frame = _compute_derived(_filter_store(store))
     frame = frame.sort_values("shrinkage", ascending=False)
 
