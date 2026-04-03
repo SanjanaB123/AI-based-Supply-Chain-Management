@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GCS_BUCKET: supply-chain-pipeline
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
 
     steps:
       - name: Checkout repository
@@ -35,8 +36,6 @@ jobs:
           pip install -r modelling/requirements.txt
 
       - name: Set up MLflow environment
-        env:
-          MLFLOW_TRACKING_URI: https://mlflow-952666479463.us-central1.run.app/
         run: |
           echo "MLflow tracking URI: $MLFLOW_TRACKING_URI"
           python -c "import mlflow; print('MLflow version:', mlflow.__version__)"
@@ -73,8 +72,6 @@ jobs:
         run: python modelling/scripts/data_splitting.py
 
       - name: Tune XGBoost hyperparameters
-        env:
-          MLFLOW_TRACKING_URI: https://mlflow-952666479463.us-central1.run.app/
         run: |
           python modelling/models/optuna_tuning.py \
             --model xgboost \
@@ -83,8 +80,6 @@ jobs:
             --xgb-trials 50
 
       - name: Tune Prophet hyperparameters
-        env:
-          MLFLOW_TRACKING_URI: https://mlflow-952666479463.us-central1.run.app/
         run: |
           python modelling/models/optuna_tuning.py \
             --model prophet \
@@ -93,8 +88,6 @@ jobs:
             --prophet-trials 30
 
       - name: Train XGBoost model
-        env:
-          MLFLOW_TRACKING_URI: https://mlflow-952666479463.us-central1.run.app/
         run: |
           python modelling/models/xgboost_model.py \
             --data-dir data/splits \
@@ -103,8 +96,6 @@ jobs:
             --params-path optuna_studies/xgboost/best_params.json
 
       - name: Train Prophet model
-        env:
-          MLFLOW_TRACKING_URI: https://mlflow-952666479463.us-central1.run.app/
         run: |
           python modelling/models/prophet_model.py \
             --data-dir data/splits \
@@ -113,8 +104,6 @@ jobs:
             --params-path optuna_studies/prophet/best_params.json
 
       - name: Select best model and promote to production
-        env:
-          MLFLOW_TRACKING_URI: https://mlflow-952666479463.us-central1.run.app/
         run: |
           python modelling/scripts/select_model.py
           if [ -f "reports/best_model.txt" ]; then
@@ -127,8 +116,6 @@ jobs:
       - name: Run bias detection
         id: bias
         continue-on-error: true
-        env:
-          MLFLOW_TRACKING_URI: https://mlflow-952666479463.us-central1.run.app/
         run: |
           python modelling/scripts/bias_detection.py \
             --model-name "$BEST_MODEL" \
@@ -144,8 +131,6 @@ jobs:
           echo "[View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
 
       - name: Run sensitivity analysis
-        env:
-          MLFLOW_TRACKING_URI: https://mlflow-952666479463.us-central1.run.app/
         run: python modelling/scripts/sensitivity_analysis.py --model-name "$BEST_MODEL" --data-dir data/splits
 
       - name: Clean up split files
