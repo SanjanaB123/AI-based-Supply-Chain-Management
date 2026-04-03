@@ -15,10 +15,11 @@ USER airflow
 COPY requirements-airflow.txt /tmp/requirements-airflow.txt
 RUN pip install --no-cache-dir -r /tmp/requirements-airflow.txt
 
-# Bake in DAGs, scripts, and params
+# Bake in DAGs, scripts, params, and DVC config
 COPY --chown=airflow:root dags/ /opt/airflow/dags/
 COPY --chown=airflow:root scripts/ /opt/airflow/scripts/
 COPY --chown=airflow:root params.yaml /opt/airflow/params.yaml
+COPY --chown=airflow:root .dvc/config /opt/airflow/.dvc/config
 
 # Entrypoint script that handles DB migration before starting
 COPY --chown=airflow:root entrypoint.sh /opt/airflow/entrypoint.sh
