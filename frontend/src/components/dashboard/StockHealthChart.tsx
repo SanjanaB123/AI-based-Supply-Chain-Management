@@ -5,20 +5,20 @@ import type { StockHealthResponse, StockStatus } from '../../types/inventory';
 
 const STATUS_COLORS: Record<StockStatus, string> = {
   critical: '#ef4444',
-  low: '#f59e0b',
-  healthy: '#10b981',
+  low:      '#f59e0b',
+  healthy:  '#10b981',
 };
 
 const STATUS_LABELS: Record<StockStatus, string> = {
   critical: 'Critical',
-  low: 'Low',
-  healthy: 'Healthy',
+  low:      'Low',
+  healthy:  'Healthy',
 };
 
 const STATUS_SUBTEXTS: Record<StockStatus, string> = {
   critical: 'Need immediate reorder',
-  low: 'Approaching reorder point',
-  healthy: 'Adequate supply',
+  low:      'Approaching reorder point',
+  healthy:  'Adequate supply',
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -28,30 +28,29 @@ interface Props {
 }
 
 export default function StockHealthChart({ data }: Props) {
-  // Embed fill into data objects — recharts v3 reads `fill` per-entry without Cell
   const chartData = data.breakdown.map(item => ({
-    name: item.status,
+    name:  item.status,
     value: item.count,
-    fill: STATUS_COLORS[item.status],
+    fill:  STATUS_COLORS[item.status],
   }));
 
   const healthyItem = data.breakdown.find(b => b.status === 'healthy');
-  const healthPct = healthyItem?.percentage ?? 0;
+  const healthPct   = healthyItem?.percentage ?? 0;
 
   return (
-    <div className="rounded-xl border border-slate-100 bg-white shadow-sm">
-      <div className="flex flex-col gap-6 p-5">
+    <div className="rounded-xl border border-slate-200/80 bg-white shadow-sm max-h-130">
+      <div className="flex flex-col gap-5 p-5">
 
-        {/* Donut with DOM center label */}
-        <div className="relative mx-auto h-44 w-44 shrink-0">
+        {/* Donut with center label */}
+        <div className="relative mx-auto h-56 w-56 shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={chartData}
                 cx="50%"
                 cy="50%"
-                innerRadius={58}
-                outerRadius={84}
+                innerRadius={76}
+                outerRadius={112}
                 paddingAngle={3}
                 dataKey="value"
                 startAngle={90}
@@ -75,10 +74,10 @@ export default function StockHealthChart({ data }: Props) {
           </ResponsiveContainer>
           {/* Center overlay */}
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-bold tracking-tight text-slate-900">
+            <span className="text-3xl font-bold tracking-tight text-slate-900 xl:text-4xl tabular-nums">
               {data.total_products}
             </span>
-            <span className="text-[11px] font-medium uppercase tracking-widest text-slate-400">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
               products
             </span>
           </div>
@@ -86,11 +85,11 @@ export default function StockHealthChart({ data }: Props) {
 
         {/* Legend */}
         <div className="min-w-0">
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-slate-100">
             {data.breakdown.map(item => (
               <div
                 key={item.status}
-                className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
+                className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
               >
                 <div className="flex items-start gap-3">
                   <span
@@ -98,36 +97,36 @@ export default function StockHealthChart({ data }: Props) {
                     style={{ backgroundColor: STATUS_COLORS[item.status] }}
                   />
                   <div>
-                    <p className="text-sm font-medium text-slate-700">
+                    <p className="text-[13px] font-medium text-slate-700">
                       {STATUS_LABELS[item.status]}
                     </p>
-                    <p className="text-xs text-slate-400">{STATUS_SUBTEXTS[item.status]}</p>
+                    <p className="text-[11px] text-slate-400">{STATUS_SUBTEXTS[item.status]}</p>
                   </div>
                 </div>
-                <div className="flex items-baseline gap-3 shrink-0 pl-4">
-                  <span className="text-sm font-semibold text-slate-900">{item.count}</span>
-                  <span className="w-9 text-right text-xs text-slate-400">{item.percentage}%</span>
+                <div className="flex items-baseline gap-2.5 shrink-0 pl-4">
+                  <span className="text-sm font-semibold text-slate-900 tabular-nums">{item.count}</span>
+                  <span className="w-8 text-right text-[11px] text-slate-400 tabular-nums">{item.percentage}%</span>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Total row */}
-          <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-3">
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+          <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2.5">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
               Total
             </span>
-            <div className="flex items-baseline gap-3">
-              <span className="text-sm font-semibold text-slate-900">{data.total_products}</span>
-              <span className="w-9 text-right text-xs text-slate-400">100%</span>
+            <div className="flex items-baseline gap-2.5">
+              <span className="text-sm font-semibold text-slate-900 tabular-nums">{data.total_products}</span>
+              <span className="w-8 text-right text-[11px] text-slate-400">100%</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Health score footer */}
-      <div className="flex items-center justify-between border-t border-slate-50 px-5 py-3.5">
-        <span className="text-xs text-slate-400">Store health score</span>
+      <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3">
+        <span className="text-[11px] text-slate-400">Store health score</span>
         <div className="flex items-center gap-2.5">
           <div className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
             <div
@@ -135,7 +134,7 @@ export default function StockHealthChart({ data }: Props) {
               style={{ width: `${healthPct}%` }}
             />
           </div>
-          <span className="text-xs font-semibold text-slate-700">{healthPct}%</span>
+          <span className="text-[12px] font-semibold text-slate-700 tabular-nums">{healthPct}%</span>
         </div>
       </div>
     </div>

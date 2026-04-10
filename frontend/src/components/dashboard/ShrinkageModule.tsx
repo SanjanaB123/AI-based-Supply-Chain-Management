@@ -9,7 +9,7 @@ function varianceTextClass(v: number): string {
 }
 
 function varianceRowBg(v: number): string {
-  if (v > 10) return 'bg-amber-50/50';
+  if (v > 10) return 'bg-amber-100/50';
   if (v < 0) return 'bg-slate-50/40';
   return '';
 }

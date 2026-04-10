@@ -36,7 +36,7 @@ export default function VarianceHighlights({ data }: Props) {
   const totalNeg = data.products.filter(p => p.shrinkage < 0).length;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 h-92 overflow-x-auto">
       {/* Summary strip */}
       <div className="flex items-center gap-4 text-[11px] text-slate-400">
         {totalPos > 0 && (

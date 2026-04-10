@@ -1,57 +1,11 @@
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Cell,
-  LabelList,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
 import type { SellThroughResponse } from '../../types/inventory';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function getRateColor(rate: number): string {
-  if (rate >= 70) return '#10b981';
-  if (rate >= 40) return '#f59e0b';
-  return '#ef4444';
-}
-
-interface ChartItem {
-  name: string;
-  rate: number;
-  category: string;
-  sold: number;
-  received: number;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function SellThroughTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
-  if (!active || !payload?.length) return null;
-  const d = payload[0].payload as ChartItem;
-  return (
-    <div
-      style={{
-        background: 'white',
-        border: '1px solid #e2e8f0',
-        borderRadius: 8,
-        padding: '8px 12px',
-        fontSize: 12,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-      }}
-    >
-      <p style={{ fontWeight: 600, color: '#1e293b', marginBottom: 2 }}>{d.name}</p>
-      <p style={{ color: '#64748b', marginBottom: 6 }}>{d.category}</p>
-      <p style={{ color: '#475569' }}>
-        Sell-through:{' '}
-        <strong style={{ color: getRateColor(d.rate) }}>{d.rate}%</strong>
-      </p>
-      <p style={{ color: '#94a3b8', fontSize: 11, marginTop: 2 }}>
-        {d.sold.toLocaleString()} sold / {d.received.toLocaleString()} received
-      </p>
-    </div>
-  );
+function getHealthClass(rate: number): { bar: string; text: string; bg: string; border: string } {
+  if (rate >= 70) return { bar: 'bg-emerald-500', text: 'text-emerald-600', bg: 'bg-emerald-100', border: 'border-emerald-100' };
+  if (rate >= 40) return { bar: 'bg-amber-500',   text: 'text-amber-600',   bg: 'bg-amber-100',   border: 'border-amber-100'   };
+  return              { bar: 'bg-red-500',     text: 'text-red-500',     bg: 'bg-red-100',     border: 'border-red-100'     };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -71,96 +25,101 @@ export default function SellThroughModule({ data }: Props) {
     );
   }
 
+  // Already sorted descending by sell-through rate from the API
   const products = data.products.slice(0, MAX_DISPLAY);
-  const topPerformer = products[0];
+  const topPerformer    = products[0];
   const bottomPerformer = products[products.length - 1];
-
-  const chartData: ChartItem[] = products.map(p => ({
-    name: p.product_id,
-    rate: Math.round(p.sell_through_rate),
-    category: p.category,
-    sold: p.total_sold,
-    received: p.total_received,
-  }));
-
-  const chartHeight = Math.max(180, chartData.length * 30 + 24);
 
   return (
     <div className="space-y-4">
-      {/* Top / bottom performer callouts */}
+
+      {/* ── Callout cards ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3">
         {topPerformer && (
-          <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-600">
+          <div className="rounded-lg border border-emerald-100 bg-emerald-100 px-3.5 py-3">
+            <p className="text-[9px] font-semibold uppercase tracking-widest text-emerald-600">
               Top Performer
             </p>
-            <p className="mt-1 truncate text-sm font-semibold text-slate-800">
+            <p className="mt-1 truncate text-[13px] font-semibold text-slate-800">
               {topPerformer.product_id}
             </p>
-            <p className="text-xs text-emerald-600">
+            <p className="text-[11px] font-medium text-emerald-600">
               {Math.round(topPerformer.sell_through_rate)}% sell-through
             </p>
           </div>
         )}
         {bottomPerformer && bottomPerformer.product_id !== topPerformer?.product_id && (
-          <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-red-500">
+          <div className="rounded-lg border border-red-100 bg-red-100 px-3.5 py-3">
+            <p className="text-[9px] font-semibold uppercase tracking-widest text-red-500">
               Needs Attention
             </p>
-            <p className="mt-1 truncate text-sm font-semibold text-slate-800">
+            <p className="mt-1 truncate text-[13px] font-semibold text-slate-800">
               {bottomPerformer.product_id}
             </p>
-            <p className="text-xs text-red-500">
+            <p className="text-[11px] font-medium text-red-500">
               {Math.round(bottomPerformer.sell_through_rate)}% sell-through
             </p>
           </div>
         )}
       </div>
 
-      {/* Horizontal bar chart */}
-      <div style={{ height: chartHeight }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={chartData}
-            layout="vertical"
-            margin={{ top: 0, right: 44, left: 4, bottom: 0 }}
-            barSize={13}
-          >
-            <XAxis
-              type="number"
-              domain={[0, 100]}
-              tickFormatter={v => `${v}%`}
-              tick={{ fontSize: 10, fill: '#94a3b8' }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              type="category"
-              dataKey="name"
-              width={58}
-              tick={{ fontSize: 10, fill: '#64748b' }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <Tooltip content={<SellThroughTooltip />} cursor={{ fill: 'rgba(241,245,249,0.7)' }} />
-            <Bar dataKey="rate" radius={[0, 3, 3, 0]}>
-              {chartData.map((entry, i) => (
-                <Cell key={i} fill={getRateColor(entry.rate)} fillOpacity={0.88} />
-              ))}
-              <LabelList
-                dataKey="rate"
-                position="right"
-                style={{ fontSize: 10, fill: '#64748b' }}
-                formatter={(v: number) => `${v}%`}
-              />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+      {/* ── Column headers ─────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3 px-1">
+        <span className="w-5 shrink-0" />
+        <span className="w-28 shrink-0 text-[9px] font-semibold uppercase tracking-widest text-slate-400">
+          Product
+        </span>
+        <span className="flex-1 text-[9px] font-semibold uppercase tracking-widest text-slate-400">
+          Sell-through rate
+        </span>
+        <span className="w-9 shrink-0 text-right text-[9px] font-semibold uppercase tracking-widest text-slate-400">
+          Rate
+        </span>
       </div>
 
+      {/* ── Ranked list ────────────────────────────────────────────────────── */}
+      <div className="space-y-1.5">
+        {products.map((p, i) => {
+          const rate  = Math.round(p.sell_through_rate);
+          const theme = getHealthClass(rate);
+
+          return (
+            <div key={p.product_id} className="group flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-slate-50 transition-colors">
+              {/* Rank */}
+              <span className="w-5 shrink-0 text-right text-[10px] font-semibold tabular-nums text-slate-300">
+                {i + 1}
+              </span>
+
+              {/* Product + category */}
+              <div className="w-28 shrink-0">
+                <p className="truncate text-[12px] font-medium text-slate-700 leading-tight">
+                  {p.product_id}
+                </p>
+                <p className="truncate text-[10px] text-slate-400 leading-tight">{p.category}</p>
+              </div>
+
+              {/* Progress track */}
+              <div className="flex flex-1 items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${theme.bar} transition-all duration-500`}
+                    style={{ width: `${rate}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Rate label */}
+              <span className={`w-9 shrink-0 text-right text-[11px] font-semibold tabular-nums ${theme.text}`}>
+                {rate}%
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <p className="text-[11px] text-slate-400">
-        Showing {products.length} of {data.products.length} products · Sorted by sell-through rate
-        (high → low)
+        {products.length} of {data.products.length} products · sorted by sell-through rate (high → low)
       </p>
     </div>
   );

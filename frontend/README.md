@@ -675,7 +675,7 @@ None. No new env vars, no new npm packages, no Clerk dashboard changes.
 
 ---
 
-## Step 5 — Dashboard Densification & Shell Refinement
+## Step 7 — Dashboard Densification & Shell Refinement
 
 ### What was done
 
@@ -683,7 +683,7 @@ None. No new env vars, no new npm packages, no Clerk dashboard changes.
 - Added a dedicated desktop top bar (`bg-slate-800`) — one tone lighter than the sidebar (`bg-slate-900`) to give the shell visual depth
 - Top bar contains the store selector (injected via context), notification bell, inbox icon, and UserButton — all on the right
 - Sidebar section label text updated from near-invisible `text-slate-600` to `text-slate-400` for legibility
-- Active sidebar nav item changed from `bg-white/10` to `bg-blue-500/20 text-blue-50` (icon: `text-blue-300`) for a lighter blue selected state
+- Active sidebar nav item changed from `bg-white/10` to `bg-blue-500/20 text-blue-100` (icon: `text-blue-300`) for a lighter blue selected state
 - Inactive nav item text changed from `text-slate-400` to `text-slate-300` for better contrast
 - Added **Help & Support** section to sidebar: User Guide, FAQs, Contact Support — all marked "Soon"
 
@@ -805,3 +805,184 @@ None. No new env vars, no Clerk changes, no new npm packages.
 14. **Store switch** — switching stores clears and reloads all panels; no stale data visible
 15. **Zero TypeScript errors** — `npx tsc --noEmit` exits 0
 16. `npx tsc --noEmit` — zero TypeScript errors
+
+---
+
+## Step 8 — Dashboard Polish & Chart Refinement Pass
+
+### What was done
+
+1. **Shell redesign — light-mode system**
+   - Sidebar switched from dark (`bg-slate-900`) to a cool light-gray surface (`bg-slate-100`) with a `border-r border-slate-200`
+   - Top bar switched from dark (`bg-slate-800`) to white (`bg-white`) with `border-b border-slate-200`
+   - Main content area retains `bg-slate-50`; cards remain `bg-white` — clear three-level depth
+   - All icon/text colors in the sidebar flipped to dark-on-light
+
+2. **Top bar redesign — true page header**
+   - Page title ("Inventory Overview") and subtitle now live in the top bar left side (injected via extended `TopBarContext`)
+   - Store selector moved inline with the title (still injected by `DashboardPage` via slot)
+   - Search bar added (non-functional UI, ready for wiring)
+   - Notification bell + inbox icons retained with light-mode hover states
+   - `UserButton` stays at the far right
+   - Page body now contains only dashboard module rows — no duplicate header
+
+3. **Sidebar polish**
+   - Active nav item: `bg-blue-100 text-blue-700` (lighter, cleaner selection vs old `bg-blue-500/20`)
+   - Inactive: `text-slate-600 hover:bg-slate-200/60` — legible on light surface
+   - Section labels: same `text-slate-400` uppercase
+   - Brand "AI" badge changed from `text-slate-500` → `text-blue-500`
+   - "Soon" badge updated to `ring-slate-300` (appropriate for light bg)
+
+4. **Sidebar account section**
+   - Replaced generic "Account" label with real user data via Clerk `useUser()`
+   - Shows full name (bold, `text-slate-800`) + email (smaller, `text-slate-400`)
+   - Falls back to username or "User" if name is not set
+
+5. **Semantic palette applied consistently**
+   - Critical = `red-500`, Low = `amber-500`, Healthy = `emerald-500`
+   - KPI cards now have a colored accent bar across the top (`h-0.5`) + colored label text matching the variant
+   - InsightCards borders upgraded from `*-100` to `*-200` for better depth
+   - All existing chart colors remain correct
+
+6. **Responsive typography scaling**
+   - KPI values: `text-3xl xl:text-4xl`
+   - KPI subtext: `text-xs xl:text-[13px]`
+   - KPI label: `text-[10px] xl:text-[11px]`
+   - Section labels: `xl:text-[11px]`
+   - Top bar title: `xl:text-base`; subtitle: `xl:text-[12px]`
+   - StockHealthChart center count: `xl:text-4xl`
+
+7. **Analytics tab bar — premium pill style**
+   - Active tab: `bg-blue-600 text-white shadow-sm` (solid blue pill)
+   - Inactive: `text-slate-500 hover:bg-slate-200/70 hover:text-slate-800`
+   - Tab bar row: `bg-slate-50/60` tint to differentiate from card body
+   - Removed old `bg-slate-900` active style
+
+8. **SellThroughModule — ranked performance list (full redesign)**
+   - Replaced Recharts `BarChart` entirely
+   - Now: rank number + product + category + progress track + % label
+   - Health color logic identical: emerald ≥70%, amber 40–70%, red <40%
+   - Top Performer / Needs Attention callout cards retained and refined
+   - Column headers added; rows have hover state
+   - Cleaner, faster to scan, no chart rendering overhead
+
+9. **LeadTimeRiskModule — dual-bar risk timeline (full redesign)**
+   - Replaced Recharts `ScatterChart` entirely
+   - Now: per-product rows sorted by risk (supply − lead_time gap ascending)
+   - Each row: product name + category chip, risk badge (AT RISK / +Nd buffer), dual bars
+   - Supply bar colored by health (red/amber/emerald); lead time bar always blue
+   - At-risk rows have `bg-red-100/60 border-red-200` background; borderline rows amber tint
+   - Legend: supply bar color + lead time bar color
+   - Footer: explains when supply bar is shorter than lead time = at risk
+   - Shows top 8 products by risk priority; all live data preserved
+
+10. **Card border polish**
+    - All cards switched from `border-slate-100` → `border-slate-200/80` for better definition against the `bg-white` surface
+    - KpiCard: added overflow-hidden for the accent bar clip
+
+11. **Layout consistency**
+    - Row sections use `xl:items-start` to prevent forced equal heights across uneven modules
+    - `gap-6` → `gap-5` in section grids for tighter professional spacing
+    - All `space-y-7` → `space-y-6` in page-level container
+
+12. **TopBarContext extended**
+    - Added `pageTitle`, `pageSubtitle`, `setPageMeta` to the context interface
+    - Pages call `setPageMeta(title, subtitle)` in `useEffect` with cleanup
+    - AppShell reads these and renders in the top bar left
+
+---
+
+### Files created / modified
+
+| File | Change |
+|---|---|
+| `src/app/TopBarContext.tsx` | Added `pageTitle`, `pageSubtitle`, `setPageMeta` to context |
+| `src/app/AppShell.tsx` | Full shell redesign: light sidebar, new top bar layout, user info via `useUser()` |
+| `src/pages/DashboardPage.tsx` | Removed page header; added `setPageMeta`; updated store selector to `variant="light"`; premium tab bar |
+| `src/components/dashboard/KpiCard.tsx` | Accent bar, colored label, responsive typography |
+| `src/components/dashboard/SellThroughModule.tsx` | Full redesign: ranked list with progress tracks |
+| `src/components/dashboard/LeadTimeRiskModule.tsx` | Full redesign: dual-bar risk timeline |
+| `src/components/dashboard/StockHealthChart.tsx` | Border polish, responsive center count, spacing tweaks |
+| `src/components/dashboard/InsightCards.tsx` | Border upgrade (`*-200`), tighter spacing |
+| `src/components/dashboard/StoreSelector.tsx` | Light variant updated for new top bar |
+
+---
+
+### Updated frontend tree (Step 4 state)
+
+```
+frontend/src/
+├── App.tsx
+├── main.tsx
+├── index.css
+├── app/
+│   ├── AppShell.tsx                   ← redesigned: light shell, real user info
+│   ├── AuthLayout.tsx
+│   ├── RootLayout.tsx
+│   └── TopBarContext.tsx              ← extended: pageTitle, pageSubtitle, setPageMeta
+├── components/
+│   ├── ProtectedRoute.tsx
+│   └── dashboard/
+│       ├── CategoryBreakdown.tsx
+│       ├── ChartSkeleton.tsx
+│       ├── CriticalItemsTable.tsx
+│       ├── DaysOfSupplyModule.tsx
+│       ├── InsightCards.tsx           ← border polish
+│       ├── KpiCard.tsx                ← accent bar, responsive type
+│       ├── KpiSkeleton.tsx
+│       ├── LeadTimeRiskModule.tsx     ← REDESIGNED: dual-bar risk timeline
+│       ├── ModuleSkeleton.tsx
+│       ├── RiskSpotlightPanel.tsx
+│       ├── SectionContainer.tsx
+│       ├── SellThroughModule.tsx      ← REDESIGNED: ranked performance list
+│       ├── ShrinkageModule.tsx
+│       ├── StockHealthChart.tsx       ← border polish, responsive
+│       ├── StoreSelector.tsx          ← light variant updated
+│       └── VarianceHighlights.tsx
+├── hooks/
+│   └── useCurrentUser.ts
+├── lib/
+│   ├── api.ts
+│   ├── config.ts
+│   └── inventory.ts
+├── pages/
+│   ├── DashboardPage.tsx              ← no page header; setPageMeta; light tab bar
+│   ├── HomePage.tsx
+│   ├── SignInPage.tsx
+│   └── SignUpPage.tsx
+├── routes/
+│   └── AppRouter.tsx
+└── types/
+    └── inventory.ts
+```
+
+---
+
+### Packages added
+
+None. All changes use existing dependencies (React, Tailwind CSS, Recharts, `@clerk/clerk-react`).
+
+---
+
+### Manual steps required
+
+None. No new env vars, no new npm packages, no Clerk configuration changes.
+
+---
+
+### How to verify this step
+
+1. `cd frontend && npm run dev` → open `/dashboard`
+2. **Shell** — sidebar is light cool-gray (`bg-slate-100`), not dark; top bar is white; main content is `bg-slate-50`
+3. **Top bar** — left side shows "Inventory Overview" (bold) + subtitle; store selector appears inline; search bar in center-right; bell + inbox + user on far right
+4. **Sidebar active state** — Dashboard has a soft blue pill (`bg-blue-100 text-blue-700`), not dark
+5. **Sidebar user section** — shows your Clerk display name (bold) + email address (smaller, gray)
+6. **KPI cards** — each has a colored horizontal accent bar at the top matching its semantic color; values scale up at `xl:` viewport
+7. **Analytics tabs** — active tab is a solid blue pill (`bg-blue-600`); tab bar has a slate-50 tint background
+8. **Sell-Through tab** — shows a ranked list with numbered rows, progress bars, and color-coded `%` labels; no Recharts bar chart
+9. **Lead-Time Risk tab** — shows per-product rows sorted by risk, each with two horizontal bars (supply in green/amber/red, lead time in blue); at-risk rows are red-tinted; "AT RISK" badge visible for stockout items
+10. **Semantic colors** — critical=red, low=amber, healthy=emerald, applied in KPI accents, chips, banners, progress bars
+11. **Responsive typography** — at viewport ≥ 1280px (`xl`), KPI values, top bar title, and section labels visibly increase in size
+12. **Store switching** — changing store reloads all data; no stale state
+13. **Mobile (< 768px)** — layout degrades gracefully; store selector visible in page area; top bar shows brand + user
+14. **Zero TypeScript errors** — `npx tsc --noEmit` exits 0

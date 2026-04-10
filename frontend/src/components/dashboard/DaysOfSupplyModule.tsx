@@ -5,8 +5,8 @@ import type { DaysOfSupplyResponse } from '../../types/inventory';
 type Health = 'critical' | 'low' | 'healthy';
 
 const HEALTH_STYLES: Record<Health, { rowBg: string; dayText: string; barColor: string }> = {
-  critical: { rowBg: 'bg-red-50/60',   dayText: 'text-red-700',    barColor: '#ef4444' },
-  low:      { rowBg: 'bg-amber-50/60', dayText: 'text-amber-700',  barColor: '#f59e0b' },
+  critical: { rowBg: 'bg-red-100/60',   dayText: 'text-red-700',    barColor: '#ef4444' },
+  low:      { rowBg: 'bg-amber-100/60', dayText: 'text-amber-700',  barColor: '#f59e0b' },
   healthy:  { rowBg: '',               dayText: 'text-emerald-700', barColor: '#10b981' },
 };
 

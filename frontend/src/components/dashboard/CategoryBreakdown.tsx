@@ -44,7 +44,7 @@ export default function CategoryBreakdown({ data }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 h-92">
       {/* Color legend */}
       <div className="flex items-center gap-4 text-[10px] text-slate-400">
         <span className="flex items-center gap-1.5">

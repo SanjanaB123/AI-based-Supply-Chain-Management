@@ -3,8 +3,8 @@ import type { DaysOfSupplyResponse, LeadTimeRiskResponse } from '../../types/inv
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const STATUS_CHIP: Record<'critical' | 'low', { bg: string; text: string }> = {
-  critical: { bg: 'bg-red-100',   text: 'text-red-700'   },
-  low:      { bg: 'bg-amber-100', text: 'text-amber-700' },
+  critical: { bg: 'bg-red-200',   text: 'text-red-700'   },
+  low:      { bg: 'bg-amber-200', text: 'text-amber-700' },
 };
 
 const DAYS_TEXT: Record<'critical' | 'low', string> = {
@@ -13,8 +13,8 @@ const DAYS_TEXT: Record<'critical' | 'low', string> = {
 };
 
 const ROW_BG: Record<'critical' | 'low', string> = {
-  critical: 'bg-red-50/40',
-  low:      'bg-amber-50/30',
+  critical: 'bg-red-100',
+  low:      'bg-amber-100',
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ export default function CriticalItemsTable({ dosData, ltrData }: Props) {
 
   if (urgentProducts.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 py-10 text-center">
+      <div className="flex flex-col items-center gap-2 py-10 text-center h-86">
         <span className="h-2 w-2 rounded-full bg-emerald-500" />
         <p className="text-sm text-slate-400">All products adequately stocked.</p>
       </div>
@@ -43,7 +43,7 @@ export default function CriticalItemsTable({ dosData, ltrData }: Props) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 h-86">
       {/* Summary strip */}
       <div className="flex items-center gap-4 text-sm">
         {(() => {

@@ -119,11 +119,11 @@ function AlertIcon() {
   );
 }
 
-// ── Section header helper ─────────────────────────────────────────────────────
+// ── Section header + card helpers ─────────────────────────────────────────────
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+    <h2 className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400 xl:text-[11px]">
       {children}
     </h2>
   );
@@ -131,7 +131,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function ModuleCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl border border-slate-100 bg-white p-5 shadow-sm ${className}`}>
+    <div className={`rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm ${className}`}>
       {children}
     </div>
   );
@@ -141,7 +141,7 @@ function ModuleCard({ children, className = '' }: { children: React.ReactNode; c
 
 export default function DashboardPage() {
   const { getToken } = useCurrentUser();
-  const { setTopBarSlot } = useTopBar();
+  const { setTopBarSlot, setPageMeta } = useTopBar();
 
   // Store list
   const [stores, setStores]               = useState<string[]>([]);
@@ -150,9 +150,9 @@ export default function DashboardPage() {
   const [storesError, setStoresError]     = useState<string | null>(null);
 
   // Store data — fetched in parallel
-  const [stockLevels, setStockLevels] = useState<StockLevelsResponse | null>(null);
-  const [stockHealth, setStockHealth] = useState<StockHealthResponse | null>(null);
-  const [sellThrough, setSellThrough] = useState<SellThroughResponse | null>(null);
+  const [stockLevels, setStockLevels]   = useState<StockLevelsResponse | null>(null);
+  const [stockHealth, setStockHealth]   = useState<StockHealthResponse | null>(null);
+  const [sellThrough, setSellThrough]   = useState<SellThroughResponse | null>(null);
   const [daysOfSupply, setDaysOfSupply] = useState<DaysOfSupplyResponse | null>(null);
   const [leadTimeRisk, setLeadTimeRisk] = useState<LeadTimeRiskResponse | null>(null);
   const [shrinkage, setShrinkage]       = useState<ShrinkageResponse | null>(null);
@@ -162,6 +162,16 @@ export default function DashboardPage() {
 
   // Active analytics tab
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('sell-through');
+
+  // ── Set page title in top bar ─────────────────────────────────────────────
+
+  useEffect(() => {
+    setPageMeta(
+      'Inventory Overview',
+      'Real-time stock intelligence across your store network',
+    );
+    return () => setPageMeta('', '');
+  }, [setPageMeta]);
 
   // ── Store change handler (stable ref) ────────────────────────────────────
 
@@ -180,7 +190,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (storesLoading) {
       setTopBarSlot(
-        <div className="h-9 w-44 animate-pulse rounded-lg bg-white/10" />,
+        <div className="h-9 w-40 animate-pulse rounded-lg bg-slate-200" />,
       );
     } else if (stores.length > 0) {
       setTopBarSlot(
@@ -188,7 +198,7 @@ export default function DashboardPage() {
           stores={stores}
           selected={selectedStore}
           onChange={handleStoreChange}
-          variant="dark"
+          variant="light"
         />,
       );
     } else {
@@ -282,38 +292,26 @@ export default function DashboardPage() {
   // ── Layout ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-6">
 
-      {/* ── Page header ────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
-            Inventory Overview
-          </h1>
-          <p className="mt-0.5 text-sm text-slate-400">
-            Real-time stock intelligence across your store network
-          </p>
-        </div>
-
-        {/* Mobile-only store selector — desktop version lives in the top bar */}
-        <div className="md:hidden">
-          {storesLoading ? (
-            <div className="h-9 w-40 animate-pulse rounded-lg bg-slate-200" />
-          ) : !storesError && stores.length > 0 ? (
-            <StoreSelector stores={stores} selected={selectedStore} onChange={handleStoreChange} />
-          ) : null}
-        </div>
+      {/* ── Mobile-only store selector ──────────────────────────────────────── */}
+      <div className="md:hidden">
+        {storesLoading ? (
+          <div className="h-9 w-40 animate-pulse rounded-lg bg-slate-200" />
+        ) : !storesError && stores.length > 0 ? (
+          <StoreSelector stores={stores} selected={selectedStore} onChange={handleStoreChange} />
+        ) : null}
       </div>
 
       {/* ── Error banners ───────────────────────────────────────────────────── */}
       {storesError && (
-        <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3.5 text-sm text-red-600">
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-100 px-4 py-3.5 text-sm text-red-600">
           <AlertIcon />
           {storesError}
         </div>
       )}
       {dataError && !dataLoading && (
-        <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3.5 text-sm text-red-600">
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-100 px-4 py-3.5 text-sm text-red-600">
           <AlertIcon />
           {dataError}
         </div>
@@ -363,7 +361,7 @@ export default function DashboardPage() {
 
       {/* ── Health chart + Analytics tabs ───────────────────────────────────── */}
       <section>
-        <div className="grid gap-6 xl:grid-cols-3">
+        <div className="grid gap-5 xl:grid-cols-3 xl:items-start">
 
           {/* Health distribution chart */}
           <div className="xl:col-span-1">
@@ -378,17 +376,17 @@ export default function DashboardPage() {
           {/* Analytics panel */}
           <div className="xl:col-span-2">
             <SectionLabel>Analytics</SectionLabel>
-            <div className="rounded-xl border border-slate-100 bg-white shadow-sm">
-              {/* Tab bar */}
-              <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-100 px-3 py-2.5">
+            <div className="rounded-xl border border-slate-200/80 bg-white shadow-sm">
+              {/* Tab bar — premium pill style */}
+              <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-100 bg-slate-50/60 px-3 py-2 rounded-t-xl">
                 {ANALYTICS_TABS.map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`shrink-0 rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                    className={`shrink-0 rounded-lg px-3.5 py-1.5 text-[12px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                       activeTab === tab.id
-                        ? 'bg-slate-900 text-white'
-                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-slate-500 hover:bg-slate-200/70 hover:text-slate-800'
                     }`}
                   >
                     {tab.label}
@@ -396,7 +394,7 @@ export default function DashboardPage() {
                 ))}
               </div>
               {/* Module content */}
-              <div className="p-5">
+              <div className="p-5 h-117 overflow-x-auto">
                 {renderActiveModule()}
               </div>
             </div>
@@ -406,7 +404,7 @@ export default function DashboardPage() {
 
       {/* ── Lower grid: Urgent Items + Insights ─────────────────────────────── */}
       <section>
-        <div className="grid gap-6 xl:grid-cols-3">
+        <div className="grid gap-5 xl:grid-cols-3 xl:items-start">
 
           {/* Critical items table */}
           <div className="xl:col-span-2">
@@ -444,7 +442,7 @@ export default function DashboardPage() {
 
       {/* ── Lower grid: Risk + Category + Variance ───────────────────────────── */}
       <section>
-        <div className="grid gap-6 xl:grid-cols-3">
+        <div className="grid gap-5 xl:grid-cols-3 xl:items-start">
 
           {/* Risk spotlight */}
           <div>

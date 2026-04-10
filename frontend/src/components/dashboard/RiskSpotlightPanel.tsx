@@ -14,7 +14,7 @@ export default function RiskSpotlightPanel({ data }: Props) {
 
   if (atRisk.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2.5 py-8 text-center">
+      <div className="flex flex-col items-center gap-2.5 py-8 text-center h-92">
         <span className="h-2 w-2 rounded-full bg-emerald-500" />
         <p className="text-sm text-slate-400">
           No stockout risk. All products have enough supply to cover their lead times.
@@ -26,9 +26,9 @@ export default function RiskSpotlightPanel({ data }: Props) {
   const shown = atRisk.slice(0, 6);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 h-92">
       {/* Alert banner */}
-      <div className="flex items-center gap-2.5 rounded-lg border border-red-100 bg-red-50 px-3 py-2.5 text-sm">
+      <div className="flex items-center gap-2.5 rounded-lg border border-red-100 bg-red-100 px-3 py-2.5 text-sm">
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
         <span className="text-red-700">
           <strong>{atRisk.length}</strong> item{atRisk.length !== 1 ? 's' : ''} will stock out
