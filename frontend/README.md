@@ -1161,3 +1161,150 @@ None. No new env vars, no new npm packages, no Clerk configuration changes.
 13. **Store switch** — changing the store reloads all panels including heatmap and trend chart.
 14. **Shell unchanged** — light sidebar, white topbar, `bg-blue-200 text-blue-700` active nav state, equal row heights all preserved.
 15. **Zero TypeScript errors** — `npx tsc --noEmit` exits 0.
+
+---
+
+## Step 10 — Premium Split-Layout Auth Redesign
+
+### What was done
+
+Redesigned the Sign-In and Sign-Up pages from a bare centered-card layout into a polished, branded split-screen auth experience.
+
+1. **`AuthLayout.tsx` — complete redesign (split-screen shell)**
+   - Left panel (`md:w-[46%] lg:w-[48%] xl:w-[50%]`, hidden below `md`):
+     - `auth-bg.png` used as a full-bleed background via CSS `background-image`
+     - Two layered overlays: a dark base (`bg-slate-950/70`) + a blue-pooling gradient (`bg-gradient-to-t from-blue-950/55`) for depth and text legibility
+     - Stratos wordmark (white, with blue "AI" micro-label) anchored to the top-left — links back to `/` via `tabIndex={-1}` (kept out of keyboard focus while in auth flow)
+     - Value proposition block: small-caps category label, headline in `text-[28px] xl:text-[34px]`, body copy, and three stat callouts (94% forecast accuracy, 12ms alert latency, 3.4× faster decisions)
+     - Copyright footer anchored to the bottom-left
+   - Right panel (`flex-1`, full-width on mobile):
+     - `bg-white` — clean, high-contrast against the dark left side
+     - Clerk form constrained to `max-w-[400px]` and centered
+     - Mobile-only Stratos brand header (visible only below `md` breakpoint) with the same wordmark + tagline
+     - Bottom copyright footnote
+   - Entire layout is `min-h-screen` and `flex` — no scrollbar on the auth pages
+
+2. **`src/lib/clerkAppearance.ts` — new shared Clerk appearance config**
+   - `variables`: colorPrimary `#1e40af` (blue-800), matching `bg-slate-50` input background, `#0f172a` text, `borderRadius: 0.5rem`
+   - `elements`: card shadow/border stripped so the form sits flush on the white panel; social buttons, divider, form field labels/inputs, primary button, footer links, identity preview, and alert text all aligned to the Stratos design language
+   - Exported as a single default object consumed by both page components
+
+3. **`SignInPage.tsx` and `SignUpPage.tsx` — appearance prop added**
+   - Both components import `clerkAppearance` and pass it as `appearance={clerkAppearance}`
+   - All existing props preserved: `routing="path"`, `path`, `signUpUrl`/`signInUrl`, `fallbackRedirectUrl="/dashboard"`
+
+### Files created
+
+| File | Purpose |
+|---|---|
+| `src/lib/clerkAppearance.ts` | Shared Clerk `appearance` config object — variables + element class overrides |
+
+### Files modified
+
+| File | Change |
+|---|---|
+| `src/app/AuthLayout.tsx` | Full redesign — split-screen shell with branded left panel and clean right form panel |
+| `src/pages/SignInPage.tsx` | Added `appearance={clerkAppearance}` prop |
+| `src/pages/SignUpPage.tsx` | Added `appearance={clerkAppearance}` prop |
+
+### Packages added
+
+None. No new dependencies.
+
+### Auth layout changes
+
+| Aspect | Before | After |
+|---|---|---|
+| Layout | Centered column on `bg-gray-50` | Full-screen split: dark branded left / white form right |
+| Brand | Inline `<h1>Stratos</h1>` above Clerk card | Wordmark + "AI" badge on left panel; mobile header on right |
+| Background | Flat gray | `auth-bg.png` behind a dark overlay + blue gradient on left |
+| Value prop | Two-line tagline | Headline + body copy + three stat callouts |
+| Clerk card | Default floating card | Shadow/border stripped; form sits flush on white panel |
+| Responsiveness | Always centered | Left panel hidden below `md`; right panel full-width on mobile |
+
+### How Clerk styling was preserved
+
+- `<SignIn>` and `<SignUp>` remain the actual auth engine — no custom form logic
+- `routing`, `path`, `signUpUrl`/`signInUrl`, and `fallbackRedirectUrl` props are unchanged
+- `ClerkProvider` in `main.tsx` is untouched
+- `ProtectedRoute` and all redirect behavior are untouched
+- The `appearance` prop only adds Tailwind classes and CSS variables on top of Clerk's built-in structure
+
+### Responsiveness
+
+| Breakpoint | Behavior |
+|---|---|
+| `< 768px` (mobile) | Left panel hidden; right panel full-width; mobile Stratos header visible |
+| `≥ 768px` (md — tablet/iPad mini) | Split layout active; left panel at 46% width |
+| `≥ 1024px` (lg) | Left panel 48% |
+| `≥ 1280px` (xl) | Left panel 50%; headline scales to `text-[34px]` |
+
+### Updated frontend tree
+
+```
+frontend/src/
+├── App.tsx
+├── main.tsx
+├── index.css
+├── app/
+│   ├── AppShell.tsx
+│   ├── AuthLayout.tsx                ← REDESIGNED: split-screen branded layout
+│   ├── RootLayout.tsx
+│   └── TopBarContext.tsx
+├── components/
+│   ├── ProtectedRoute.tsx
+│   └── dashboard/
+│       ├── CategoryBreakdown.tsx
+│       ├── ChartSkeleton.tsx
+│       ├── CriticalItemsTable.tsx
+│       ├── DaysOfSupplyModule.tsx
+│       ├── InsightCards.tsx
+│       ├── InventoryHeatmapModule.tsx
+│       ├── InventoryTrendChart.tsx
+│       ├── KpiCard.tsx
+│       ├── KpiSkeleton.tsx
+│       ├── LeadTimeRiskModule.tsx
+│       ├── ModuleSkeleton.tsx
+│       ├── RiskSpotlightPanel.tsx
+│       ├── SectionContainer.tsx
+│       ├── SellThroughModule.tsx
+│       ├── ShrinkageModule.tsx
+│       ├── StockHealthChart.tsx
+│       ├── StoreSelector.tsx
+│       └── VarianceHighlights.tsx
+├── hooks/
+│   └── useCurrentUser.ts
+├── lib/
+│   ├── api.ts
+│   ├── clerkAppearance.ts            ← NEW: shared Clerk appearance config
+│   ├── config.ts
+│   └── inventory.ts
+├── pages/
+│   ├── DashboardPage.tsx
+│   ├── HomePage.tsx
+│   ├── SignInPage.tsx                ← appearance prop added
+│   └── SignUpPage.tsx                ← appearance prop added
+├── routes/
+│   └── AppRouter.tsx
+└── types/
+    └── inventory.ts
+```
+
+### Manual steps required
+
+None. No new env vars, no new npm packages, no Clerk dashboard changes required.
+
+### How to verify this step
+
+1. `cd frontend && npm run dev`
+2. Open `http://localhost:5173/sign-in`
+3. **Desktop (≥ 768px)** — page should be a true split: dark left panel with the supply chain image, Stratos wordmark, headline, stats; white right panel with the Clerk sign-in form
+4. **Left panel image** — `auth-bg.png` should be visible behind overlays; text should be legible; overall feel should be dark/premium, not raw-stretched
+5. **Left panel stats** — three callouts (94%, 12ms, 3.4×) visible above the copyright footer
+6. **Right panel** — Clerk form rendered cleanly, no extra card shadow/border, fits within white panel; buttons and inputs should feel styled (blue-800 primary, slate-50 input background)
+7. **Sign-up page** — go to `http://localhost:5173/sign-up`; same split layout, same styled Clerk card
+8. **Cross-links** — "Don't have an account? Sign up" and "Already have an account? Sign in" should still navigate between pages within the app (not to clerk.com)
+9. **Auth redirects** — completing sign-in or sign-up should redirect to `/dashboard`
+10. **Mobile (< 768px)** — left panel hidden; Stratos brand header appears above the Clerk form; layout does not break
+11. **Dashboard unchanged** — `/dashboard` layout, sidebar, modules, and nav should be exactly as before
+12. **Zero TypeScript errors** — `npx tsc --noEmit` exits 0
