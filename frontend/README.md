@@ -1308,3 +1308,527 @@ None. No new env vars, no new npm packages, no Clerk dashboard changes required.
 10. **Mobile (< 768px)** — left panel hidden; Stratos brand header appears above the Clerk form; layout does not break
 11. **Dashboard unchanged** — `/dashboard` layout, sidebar, modules, and nav should be exactly as before
 12. **Zero TypeScript errors** — `npx tsc --noEmit` exits 0
+
+---
+
+## Step 8 — Premium Dark Landing Page
+
+### What was done
+
+1. **Redesigned `HomePage.tsx`** — full rewrite; now composes `LandingNav` and `HeroSection` on a dark `bg-slate-950` base with a dot-grid overlay and radial blue glow.
+
+2. **Created `LandingNav`** (`src/components/landing/LandingNav.tsx`):
+   - Fixed to top of viewport (`position: fixed`), `h-16`, `backdrop-blur-md` frost-glass treatment
+   - Stratos + AI wordmark on the left (same visual weight as auth and dashboard sidebar)
+   - Placeholder center links: Platform · Solutions · Pricing
+   - Right side is **auth-aware**:
+     - Loading: animated skeleton placeholder (no CTA flicker)
+     - Signed out: "Sign In" text link + "Get Started" blue pill CTA
+     - Signed in: "Go to Dashboard" blue pill with arrow icon
+   - Collapses "Sign In" on mobile (`hidden sm:block`) so the primary CTA is always visible
+
+3. **Created `HeroSection`** (`src/components/landing/HeroSection.tsx`):
+   - Nav spacer (`h-16`) so fixed nav doesn't overlap content
+   - **Eyebrow badge** — rounded-full pill with pulsing blue dot and "Supply chain intelligence · Powered by AI" label
+   - **Headline** — `text-[40px]` → `text-[56px]` at md; "Know every risk / before it arrives." with the second line in `text-blue-400`
+   - **Subheadline** — one sentence, `text-slate-400`, `max-w-xl`
+   - **CTA group** — auth-aware (same Clerk `useAuth` check):
+     - Signed out: "Start for free" (blue, glowing box-shadow) + "Sign in" (frosted glass border)
+     - Signed in: "Go to Dashboard" (blue, glowing box-shadow)
+     - Loading: pulse skeleton so there is no layout shift
+   - **Trust strip** — "No credit card required · 14-day free trial · Cancel anytime" in muted slate-600
+   - **`DashboardPreview`** sub-component (internal to `HeroSection.tsx`) — a browser-chrome-framed abstract mock of the Stratos dashboard:
+     - Browser chrome with traffic-light dots and URL bar showing `app.stratos.ai/dashboard`
+     - Left sidebar with brand wordmark + nav items (active state on Dashboard)
+     - Page header row with title, store context, and export action
+     - 4 KPI cards (Forecast Acc., Days of Supply, Stock at Risk, Lead Time) with delta indicators
+     - Inventory Trend bar chart (12 bars, recent bars in full blue)
+     - Stock Health mini-donut with Healthy / Low / Critical legend
+     - 3-row data table hint (SKU · Stock · Forecast · Status)
+     - Soft radial glow beneath the frame
+     - Bottom fade mask (`linear-gradient` overlay) for a "peek" depth effect
+
+4. **Updated `RootLayout.tsx`** — removed hardcoded `bg-white` so each route can control its own background; landing page sets `bg-slate-950`, auth pages keep their own styling.
+
+---
+
+### Files created
+
+| File | Role |
+|---|---|
+| `src/components/landing/LandingNav.tsx` | Premium fixed navbar for the public landing page |
+| `src/components/landing/HeroSection.tsx` | Full hero section + internal `DashboardPreview` mock |
+
+### Files modified
+
+| File | Change |
+|---|---|
+| `src/pages/HomePage.tsx` | Full rewrite — now a dark landing page using the new components |
+| `src/app/RootLayout.tsx` | Removed `bg-white` to allow per-route background control |
+
+---
+
+### Updated file tree
+
+```
+frontend/src/
+├── App.tsx
+├── index.css
+├── main.tsx
+├── app/
+│   ├── AppShell.tsx
+│   ├── AuthLayout.tsx
+│   ├── RootLayout.tsx          ← updated (removed bg-white)
+│   └── TopBarContext.tsx
+├── components/
+│   ├── ProtectedRoute.tsx
+│   ├── dashboard/
+│   │   ├── CategoryBreakdown.tsx
+│   │   ├── ChartSkeleton.tsx
+│   │   ├── CriticalItemsTable.tsx
+│   │   ├── DaysOfSupplyModule.tsx
+│   │   ├── InsightCards.tsx
+│   │   ├── InventoryHeatmapModule.tsx
+│   │   ├── InventoryTrendChart.tsx
+│   │   ├── KpiCard.tsx
+│   │   ├── KpiSkeleton.tsx
+│   │   ├── LeadTimeRiskModule.tsx
+│   │   ├── ModuleSkeleton.tsx
+│   │   ├── RiskSpotlightPanel.tsx
+│   │   ├── SectionContainer.tsx
+│   │   ├── SellThroughModule.tsx
+│   │   ├── ShrinkageModule.tsx
+│   │   ├── StockHealthChart.tsx
+│   │   ├── StoreSelector.tsx
+│   │   └── VarianceHighlights.tsx
+│   └── landing/                ← new
+│       ├── HeroSection.tsx     ← new (includes DashboardPreview)
+│       └── LandingNav.tsx      ← new
+├── lib/
+│   ├── api.ts
+│   ├── clerkAppearance.ts
+│   ├── config.ts
+│   └── inventory.ts
+├── pages/
+│   ├── DashboardPage.tsx
+│   ├── HomePage.tsx            ← rewritten
+│   ├── SignInPage.tsx
+│   └── SignUpPage.tsx
+├── routes/
+│   └── AppRouter.tsx
+└── types/
+    └── inventory.ts
+```
+
+---
+
+### Packages added
+
+None. No new dependencies were required.
+
+---
+
+### Manual steps required
+
+None. No new env vars, no Clerk dashboard changes, no npm installs needed.
+
+---
+
+### Auth-aware CTA logic
+
+`LandingNav` and `HeroSection` both call `useAuth()` from `@clerk/clerk-react`:
+
+```tsx
+const { isSignedIn, isLoaded } = useAuth();
+```
+
+| State | Navbar shows | Hero CTA shows |
+|---|---|---|
+| Loading (`!isLoaded`) | Pulse skeleton | Pulse skeleton |
+| Signed out | "Sign In" + "Get Started" | "Start for free" + "Sign in" |
+| Signed in | "Go to Dashboard →" | "Go to Dashboard →" |
+
+No double render or layout shift — the skeleton fills the exact button width while Clerk resolves.
+
+---
+
+### Responsiveness
+
+| Breakpoint | Behavior |
+|---|---|
+| `lg` (1024px+) | Full layout: nav center links + hero + wide dashboard preview |
+| `md` (768px–1023px) | Same layout; center nav links visible; preview sidebar visible |
+| `sm` (640px–767px) | "Sign In" nav link hidden (space); CTA and headline readable; sidebar visible in preview |
+| Mobile (< 640px) | Headline stacks; trust strip dots hidden; dashboard preview has no sidebar; still reads cleanly |
+
+Desktop/laptop quality is the priority — all proportions and visual depth are tuned for 1280px–1440px wide screens.
+
+---
+
+### How to verify this step
+
+1. `cd frontend && npm run dev`
+2. Open `http://localhost:5173/` (while **signed out**)
+   - Page should be **dark slate-950** background with a faint dot grid
+   - Fixed frosted navbar: Stratos AI wordmark left, Platform/Solutions/Pricing center, "Sign In" + "Get Started" right
+   - Below nav: pulsing blue eyebrow badge → bold headline "Know every risk / **before it arrives.**" (blue accent line) → slate subheadline → blue "Start for free" CTA + bordered "Sign in" → trust strip
+   - Below text: browser-framed dashboard mock with sidebar, KPI cards, bar chart, donut, table rows
+   - Bottom of preview fades to dark (depth mask)
+3. Click **"Get Started"** → should route to `/sign-up`
+4. Click **"Sign In"** (nav or hero) → should route to `/sign-in`
+5. Sign in, then return to `http://localhost:5173/`
+   - Navbar right side: "Go to Dashboard →" (blue)
+   - Hero CTA: "Go to Dashboard →" (blue, glowing)
+   - Both links should navigate to `/dashboard`
+6. Navigate to `/dashboard` → layout, sidebar, and all modules should be **unchanged**
+7. Navigate to `/sign-in` and `/sign-up` → auth split layout should be **unchanged**
+8. Resize to tablet width (768px) — layout should remain composed, no broken overflow
+9. Resize to mobile (375px) — page should be readable though not pixel-perfect
+
+---
+
+## Step 6 — Premium Light-Mode Landing Page with GSAP Motion
+
+### What was done
+
+Redesigned the public landing page (`/`) from a single dark-mode hero screen into a full premium **light-mode SaaS landing page** with tasteful GSAP motion, multiple polished sections, a compact team credits module, and a proper SaaS footer.
+
+Key changes:
+1. **Converted to light-mode** — full `bg-white` / `bg-slate-50` / `bg-slate-100` surface system; dark sections (`bg-slate-950`) used only for contrast impact (metrics, footer).
+2. **GSAP installed and wired** — staggered hero entrance, scroll-triggered section reveal, hover-lift on feature cards.
+3. **Navbar redesigned** — light background, scroll-aware shadow, same auth-aware CTA logic.
+4. **Hero section redesigned** — light browser chrome frame around the dark product preview; radial blue tint gradient; faint dot-grid overlay; large responsive headline up to 76px on XL.
+5. **Five page sections added** — Features, Metrics, Workflow, Team, Footer (each its own component).
+6. **Team section** — compact card grid with initials avatars, name, and role tag for all 5 listed team members.
+7. **Footer** — premium dark (`bg-slate-950`) SaaS footer with brand, tagline, nav columns, status pill, and copyright.
+8. **Auth-aware CTAs preserved** — signed-out shows "Start for free" + "Sign in"; signed-in shows "Go to Dashboard".
+9. **TypeScript stays clean** — zero `tsc` errors; all icon types use `FC` from react to avoid global `JSX` namespace.
+
+---
+
+### Files created
+
+| File | Notes |
+|---|---|
+| `src/components/landing/FeaturesSection.tsx` | 6 capability cards — GSAP scroll trigger + hover-lift per card |
+| `src/components/landing/MetricsSection.tsx` | 4 key outcome stats on dark (`bg-slate-950`) background |
+| `src/components/landing/WorkflowSection.tsx` | 3-step "How it works" section on `bg-slate-50` |
+| `src/components/landing/TeamSection.tsx` | Compact 5-member team credits with initials avatars |
+| `src/components/landing/LandingFooter.tsx` | Premium dark SaaS footer with status pill and nav columns |
+
+### Files modified
+
+| File | Notes |
+|---|---|
+| `src/pages/HomePage.tsx` | Complete rewrite — light-mode, composes all 5 sections + footer |
+| `src/components/landing/LandingNav.tsx` | Complete rewrite — light mode, scroll-aware shadow, GSAP entrance |
+| `src/components/landing/HeroSection.tsx` | Complete rewrite — light mode, light browser chrome, GSAP stagger |
+
+---
+
+### Packages added
+
+| Package | Version | Purpose |
+|---|---|---|
+| `gsap` | ^3.x | GSAP core + ScrollTrigger for motion |
+
+---
+
+### Updated frontend tree
+
+```
+frontend/src/
+├── App.tsx
+├── index.css
+├── main.tsx
+├── app/
+│   ├── AppShell.tsx
+│   ├── AuthLayout.tsx
+│   ├── RootLayout.tsx
+│   └── TopBarContext.tsx
+├── components/
+│   ├── dashboard/            (18 components, unchanged)
+│   │   ├── CategoryBreakdown.tsx
+│   │   ├── ChartSkeleton.tsx
+│   │   ├── CriticalItemsTable.tsx
+│   │   ├── DaysOfSupplyModule.tsx
+│   │   ├── InsightCards.tsx
+│   │   ├── InventoryHeatmapModule.tsx
+│   │   ├── InventoryTrendChart.tsx
+│   │   ├── KpiCard.tsx
+│   │   ├── KpiSkeleton.tsx
+│   │   ├── LeadTimeRiskModule.tsx
+│   │   ├── ModuleSkeleton.tsx
+│   │   ├── RiskSpotlightPanel.tsx
+│   │   ├── SectionContainer.tsx
+│   │   ├── SellThroughModule.tsx
+│   │   ├── ShrinkageModule.tsx
+│   │   ├── StockHealthChart.tsx
+│   │   ├── StoreSelector.tsx
+│   │   └── VarianceHighlights.tsx
+│   └── landing/              (7 components — 5 new, 2 rewritten)
+│       ├── FeaturesSection.tsx   ← NEW
+│       ├── HeroSection.tsx       ← REWRITTEN
+│       ├── LandingFooter.tsx     ← NEW
+│       ├── LandingNav.tsx        ← REWRITTEN
+│       ├── MetricsSection.tsx    ← NEW
+│       ├── TeamSection.tsx       ← NEW
+│       └── WorkflowSection.tsx   ← NEW
+├── hooks/
+│   └── useCurrentUser.ts
+├── lib/
+│   ├── api.ts
+│   ├── clerkAppearance.ts
+│   ├── config.ts
+│   └── inventory.ts
+├── pages/
+│   ├── DashboardPage.tsx         (unchanged)
+│   ├── HomePage.tsx              ← REWRITTEN
+│   ├── SignInPage.tsx            (unchanged)
+│   └── SignUpPage.tsx            (unchanged)
+├── routes/
+│   └── AppRouter.tsx
+└── types/
+    └── inventory.ts
+```
+
+---
+
+### GSAP interactions added
+
+| Location | Interaction | Description |
+|---|---|---|
+| `LandingNav` | Mount entrance | Slide down from y:-20 + fade in, 0.65s ease power2.out |
+| `HeroSection` | Staggered entrance | Each element (eyebrow → headline → sub → CTA → trust → preview) fades up with 90ms stagger |
+| `FeaturesSection` | Scroll trigger | All 6 cards fade up from y:28 with 90ms stagger on ScrollTrigger `top 78%` |
+| `FeaturesSection` | Card hover-lift | `gsap.to` on mouseenter/mouseleave — y:-5 + shadow enhancement, 0.25s / 0.3s |
+| `MetricsSection` | Scroll trigger | 4 metric items fade up with 100ms stagger |
+| `WorkflowSection` | Scroll trigger | 3 step cards fade up with 130ms stagger |
+| `TeamSection` | Scroll trigger | 5 team cards fade up with 80ms stagger |
+
+---
+
+### Landing page sections
+
+| Section | Background | Notes |
+|---|---|---|
+| Hero | `bg-white` + radial blue tint | Large headline, dashboard preview in light browser chrome |
+| Features | `bg-white` | 6 capability cards in 3-column grid |
+| Metrics | `bg-slate-950` (dark) | 4 key outcome stats in large bold type |
+| Workflow | `bg-slate-50` | 3-step "How it works" process cards |
+| Team | `bg-white` | 5 team member cards with initials avatars |
+| Footer | `bg-slate-950` (dark) | Brand, tagline, nav columns, status pill, copyright |
+
+---
+
+### Team members displayed
+
+Cards with initials avatar (colored bg), name, and role tag:
+
+| Member | Role shown | Avatar accent |
+|---|---|---|
+| Sanjana Brahmbhatt | MLOps · ETL | blue |
+| Rohit Prabu | MLOps · ETL | indigo |
+| Vedashree Bane | Containerization · ML CI/CD | emerald |
+| Somya Padhy | Backend · Deployment | amber |
+| Ghanashyam | Documentation | slate |
+
+(Aryan Mehta intentionally omitted per project instructions.)
+
+---
+
+### Light/dark architecture
+
+- Landing page root div: `bg-white` — light by default with no dark-variant CSS
+- Dark sections (`bg-slate-950`) are **intentional high-contrast surfaces** (Metrics, Footer), not a dark mode
+- No theme toggle was added in this step (classified as optional; can be layered later with class-based Tailwind dark mode)
+- Dashboard (`bg-slate-900` sidebar + explicit colors) is completely unaffected
+- Auth pages are completely unaffected
+
+---
+
+### Auth-aware CTA behavior
+
+| State | Navbar | Hero CTA |
+|---|---|---|
+| `isLoaded = false` | Pulse skeleton | Pulse skeleton |
+| Signed out | "Sign in" text + "Get Started" button | "Start for free" (primary) + "Sign in" (secondary) |
+| Signed in | "Go to Dashboard →" button | "Go to Dashboard →" (primary) |
+
+---
+
+### Responsiveness
+
+| Breakpoint | Layout |
+|---|---|
+| `xl` (1280px+) | Hero headline 76px; features 3-col; metrics 4-col; team 5-col wrap |
+| `lg` (1024px–1279px) | Hero headline 68px; features 3-col; metrics 4-col |
+| `md` (768px–1023px) | Hero headline 58px; features 2-col; metrics 2-col; workflow 3-col; nav links visible |
+| `sm` (640px–767px) | Team 2-col; trust strip dots hidden; nav "Sign in" hidden |
+| Mobile (<640px) | Features 1-col; metrics 2-col; workflow 1-col; team 1-col |
+
+---
+
+### Manual steps required
+
+None. GSAP was added to `dependencies` via `npm install gsap`. Run `npm install` and `npm run dev`.
+
+---
+
+### How to verify this step
+
+1. `cd frontend && npm run dev`
+2. Open `http://localhost:5173/` while **signed out**:
+   - Page background should be **white** (not dark)
+   - Navbar: white/frosted; "Stratos AI" left; "Platform / How it works / Team" center; "Sign in" + "Get Started" right
+   - Hero: blue eyebrow badge → large dark headline "Know every risk / **before it arrives.**" (blue accent) → gray subheadline → dark "Start for free" CTA + bordered "Sign in" → trust strip → **light browser chrome** around the dashboard preview (dark product UI inside)
+   - Scroll down: Features section (6 cards) → cards animate in on scroll; hover a card to see the lift effect
+   - Metrics section: **dark background** with large white numbers (94%, 12ms, 3.4×, 50+)
+   - Workflow section: light gray bg with 3 step cards
+   - Team section: 5 compact cards with colored initials avatars
+   - Footer: dark bg with brand, nav columns, status pill, copyright
+3. Resize to 1280px wide — content should fill the viewport confidently, no boxed/narrow feel
+4. Sign in, return to `http://localhost:5173/` — CTAs should change to "Go to Dashboard →"
+5. Visit `/dashboard` — unchanged; dark sidebar and all data modules work as before
+6. Visit `/sign-in` and `/sign-up` — auth layout unchanged
+7. `npm run build` — should complete with zero TypeScript errors
+
+---
+
+## Step 11 — Landing Page Polish Pass
+
+### What was done
+
+A targeted polish pass over the landing page only. Dashboard, auth pages, and nav were not touched.
+
+#### 1. Hero preview seam fix (`HeroSection.tsx`)
+- Added `pb-20 md:pb-28` to the dashboard preview wrapper so the browser-chrome frame now floats with breathing room above the next section — the hard edge of the frame no longer sits flush at the section boundary.
+- Increased the bottom fade overlay from `h-12` to `h-28` and changed the end stop from `rgba(248,250,252,0.5)` (slate-50 at 50%) to `rgba(255,255,255,0.92)` — the frame now fades cleanly into the white page background with no residual slate tint.
+- Removed `border-t border-slate-100` from `FeaturesSection` — redundant divider that created a double-line seam where the preview ended and features began.
+
+#### 2. Workflow section — connected process rebuild (`WorkflowSection.tsx`)
+- Replaced the disconnected card grid with a **flex-row process layout**: cards sit side-by-side with arrow connectors between them on desktop; a thin vertical line connects them on mobile.
+- Each card now has a **consistent top structure**: step badge (01/02/03 in a filled circle) at the top-left, followed by a `bg-linear-to-r` rule to the card edge, then the icon container, then title, then body copy — all in the same vertical order in every card.
+- Arrow connector SVG (`ConnectorArrow`) sits between cards in the flex row (desktop), hidden on mobile.
+- Vertical hairline connector shown on mobile between stacked cards.
+- Cards use `flex-1` to grow equally across the row; gap is removed on desktop so cards and connectors pack tightly.
+- Fixed Tailwind v4 warning: `bg-gradient-to-r` → `bg-linear-to-r`.
+
+#### 3. Team section — 3×2 grid with vertical cards (`TeamSection.tsx`)
+- Replaced the cramped flex-wrap horizontal card layout with a proper **CSS grid**: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` — 3 columns on desktop, 2 on tablet, 1 on mobile.
+- Cards are now **vertical and centered**: large 56×56 initials avatar at the top, name below (semibold), contribution text below that (allowed to wrap — no `truncate`).
+- Avatar size increased from `h-10 w-10` to `h-14 w-14`; font size bumped from 12px to 15px for better presence.
+- Updated contribution text strings to match the task spec:
+  - Aryan Mehta: `Frontend · Frontend CI/CD · Designing · Branding`
+  - Vedashree Bane: `Containerization · ML Models CI/CD`
+  - Somya Padhy: `Backend · Backend Deployment`
+- All 6 members now display correctly without any truncation or cramping.
+- Consistent `px-6 py-9` internal padding across all 6 cards.
+
+#### 4. Footer — light mode premium SaaS footer (`LandingFooter.tsx`)
+- Switched from dark (`bg-slate-950`) to light (`bg-slate-50`) to match the overall landing page palette.
+- Grid layout: `1col` mobile → `2col sm` → `4col md`, brand block spans `col-span-2`.
+- Brand block: Stratos wordmark, 2-line tagline, project attribution pill (Northeastern University · MLOps · Spring 2026 inside a white bordered pill with an emerald dot).
+- Link columns renamed from "Company" to "Project"; footer now has "Product" and "Project" groups.
+- Product links (`Platform`, `How it works`, `Features`) use real `href` anchors pointing to `#features` / `#workflow`.
+- Project links (`Team`, `Documentation`, `GitHub`) point to `#team` / `#`.
+- Section headers: `text-slate-400 uppercase tracking-widest text-[11px]`.
+- Link text: `text-slate-500 hover:text-slate-900` for clean light-mode readability.
+- Bottom bar: `border-t border-slate-200`, copyright left, project credit right — both in `text-slate-400`.
+
+#### 5. Features section light improvements (`FeaturesSection.tsx`)
+- Icon container: `h-10 w-10` → `h-11 w-11` for slightly more visual presence.
+- Hover shadow: `0 16px 40px -8px rgba(0,0,0,0.10)` → `0 20px 48px -8px rgba(0,0,0,0.11)` — marginally more elevated lift.
+- Removed `border-t border-slate-100` (moved boundary responsibility to the hero's new bottom padding).
+
+---
+
+### Files modified
+
+| File | Change |
+|---|---|
+| `src/components/landing/HeroSection.tsx` | Preview wrapper gets `pb-20 md:pb-28`; bottom fade enlarged and goes to white |
+| `src/components/landing/FeaturesSection.tsx` | Removed `border-t`; icon container `h-11 w-11`; hover shadow bump |
+| `src/components/landing/WorkflowSection.tsx` | Full layout rebuild — flex-row, arrow connectors, consistent card structure |
+| `src/components/landing/TeamSection.tsx` | Full rebuild — 3×2 grid, vertical cards, larger avatars, updated role strings |
+| `src/components/landing/LandingFooter.tsx` | Full rebuild — light mode, premium SaaS footer layout |
+
+### Files created
+
+None.
+
+### Packages added
+
+None.
+
+---
+
+### How the hero border issue was fixed
+
+The visible seam was caused by two adjacent lines: the bottom border of the browser-chrome preview frame, and the `border-t border-slate-100` at the top of `FeaturesSection`. Both appeared at the same vertical position because the preview wrapper had `pb-0`.
+
+Fix: added `pb-20 md:pb-28` to the preview wrapper (space below the frame), extended the bottom fade overlay to `h-28` going to near-opaque white, and removed the redundant `border-t` from `FeaturesSection`. The frame now floats in white space and its edge is softened by the fade.
+
+---
+
+### Updated frontend tree
+
+```
+frontend/src/
+├── App.tsx
+├── index.css
+├── main.tsx
+├── app/
+│   ├── AppShell.tsx
+│   ├── AuthLayout.tsx
+│   ├── RootLayout.tsx
+│   └── TopBarContext.tsx
+├── components/
+│   ├── ProtectedRoute.tsx
+│   ├── dashboard/            (18 components, unchanged)
+│   └── landing/
+│       ├── FeaturesSection.tsx   ← icon size, hover shadow, border-t removed
+│       ├── HeroSection.tsx       ← preview padding + fade improved
+│       ├── LandingFooter.tsx     ← REBUILT: light mode premium footer
+│       ├── LandingNav.tsx        (unchanged)
+│       ├── MetricsSection.tsx    (unchanged)
+│       ├── TeamSection.tsx       ← REBUILT: 3×2 grid, vertical cards
+│       └── WorkflowSection.tsx   ← REBUILT: flex-row process, arrow connectors
+├── hooks/
+│   └── useCurrentUser.ts
+├── lib/
+│   ├── api.ts
+│   ├── clerkAppearance.ts
+│   ├── config.ts
+│   └── inventory.ts
+├── pages/
+│   ├── DashboardPage.tsx         (unchanged)
+│   ├── HomePage.tsx              (unchanged)
+│   ├── SignInPage.tsx            (unchanged)
+│   └── SignUpPage.tsx            (unchanged)
+├── routes/
+│   └── AppRouter.tsx
+└── types/
+    └── inventory.ts
+```
+
+---
+
+### Manual steps required
+
+None. No new env vars, no new packages, no Clerk changes.
+
+---
+
+### How to verify this step
+
+1. `cd frontend && npm run dev`
+2. Open `http://localhost:5173/` (signed out)
+3. **Hero border** — scroll slowly; the dashboard preview should float cleanly above the Features section with no hard seam or double-line border visible at the transition
+4. **Workflow section** — three cards sit in a row separated by `→` arrow connectors (desktop); each card has the step number badge (01/02/03) at top-left followed by the icon, title, and body in consistent alignment; on mobile cards stack with a vertical line connector between them
+5. **Team section** — six cards in a 3×2 grid (desktop), 2×3 (tablet), 1×6 (mobile); each card is vertical — large initials circle at top-center, name below (semibold), role text below that (wraps cleanly); Aryan Mehta appears in the first card
+6. **Footer** — light gray background (`bg-slate-50`), not dark; brand wordmark top-left of the brand column; attribution pill (Northeastern · MLOps · Spring 2026) below the tagline; "Product" and "Project" link columns; clean bottom bar with copyright
+7. **Features cards** — hover a card; the lift shadow should be slightly more elevated; icon containers are slightly larger
+8. **Dashboard unchanged** — `/dashboard` layout, sidebar, modules, and nav are exactly as before
+9. **Auth pages unchanged** — `/sign-in` and `/sign-up` split layout unchanged
+10. `npx tsc --noEmit` — zero TypeScript errors
