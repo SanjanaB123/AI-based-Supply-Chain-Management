@@ -187,10 +187,137 @@ The `src/lib/api.ts` and `src/hooks/useCurrentUser.ts` files include inline comm
 
 ---
 
+## Step 4 — Live Dashboard Integration + Dashboard UI Foundation
+
+### What was done
+
+1. **Installed Recharts** (`recharts@3.8.1`) — chart library used for all charts going forward.
+2. **Typed API responses** in `src/types/inventory.ts` — exact TypeScript types derived from the live backend (`StoresResponse`, `StockLevelsResponse`, `StockHealthResponse`, `StockStatus`).
+3. **Inventory data layer** in `src/lib/inventory.ts` — `fetchStores()`, `fetchStockLevels(storeId)`, `fetchStockHealth(storeId)` each pass a Clerk Bearer token through the existing `apiFetch` helper.
+4. **Rebuilt DashboardPage** with live backend data:
+   - Fetches store list on mount, auto-selects the first store
+   - Store selector re-triggers data fetch when changed
+   - Previous data is cleared immediately on store switch (prevents stale display)
+   - Parallel fetch of `stock-levels` and `stock-health` via `Promise.all`
+   - Cleanup flag prevents stale async state when store changes mid-flight
+5. **KPI cards section** (4 cards — Critical, Low, Healthy, Total Units):
+   - Each card has a colored top-bar accent (red / amber / emerald / indigo)
+   - Large colored numeric value, label, and subtext
+   - `grid-cols-2 md:grid-cols-4` — 4 columns on desktop, 2 on iPad
+6. **Stock Health donut chart** using Recharts `PieChart + Pie + Cell`:
+   - Donut with DOM-overlay center label (total product count)
+   - Right-side breakdown legend with color dots, counts, and percentages
+   - Hover tooltip showing product count per status
+7. **Skeleton loaders** — `KpiSkeleton` and `ChartSkeleton` mirror the real card layout and show during every loading phase (initial load and store switches)
+8. **Error banners** — visible inline banners for store-list errors and store-data errors, styled cleanly without blocking the layout
+9. **Reusable dashboard components** created in `src/components/dashboard/`:
+   - `StoreSelector` — `<select>` with Indigo focus ring
+   - `KpiCard` / `KpiSkeleton`
+   - `SectionContainer` — consistent section title + children wrapper
+   - `StockHealthChart` / `ChartSkeleton`
+
+### Files created
+
+| File | Purpose |
+|---|---|
+| `src/types/inventory.ts` | TypeScript types for all three backend API responses |
+| `src/lib/inventory.ts` | `fetchStores`, `fetchStockLevels`, `fetchStockHealth` |
+| `src/components/dashboard/StoreSelector.tsx` | Store dropdown control |
+| `src/components/dashboard/KpiCard.tsx` | Colored KPI metric card |
+| `src/components/dashboard/KpiSkeleton.tsx` | Animated skeleton for KPI cards |
+| `src/components/dashboard/SectionContainer.tsx` | Section title wrapper |
+| `src/components/dashboard/StockHealthChart.tsx` | Recharts donut chart + legend panel |
+| `src/components/dashboard/ChartSkeleton.tsx` | Animated skeleton for chart section |
+
+### Files modified
+
+| File | Change |
+|---|---|
+| `src/pages/DashboardPage.tsx` | Full rewrite — live data, store switching, KPI cards, chart |
+| `package.json` | Added `recharts` dependency |
+
+### Packages added
+
+| Package | Version |
+|---|---|
+| `recharts` | ^3.8.1 |
+
+> **Install note:** This project's global npm config has `omit=dev`. Always install with `npm install --include=dev` to get devDependencies (TypeScript, Vite, ESLint, etc.).
+
+### Backend routes used
+
+| Route | Query param | Purpose |
+|---|---|---|
+| `GET /api/stores` | — | List of store IDs |
+| `GET /api/stock-levels` | `store=S001` | Summary + per-product stock status |
+| `GET /api/stock-health` | `store=S001` | Breakdown with counts and percentages |
+
+All three routes require a Clerk JWT Bearer token.
+
+### Loading / skeleton states
+
+| Phase | What shows |
+|---|---|
+| Initial store list load | Skeleton store selector + 4 KPI skeletons + chart skeleton |
+| Store data loading (initial + switch) | 4 KPI skeletons + chart skeleton |
+| Data loaded | Real KPI cards + donut chart with legend |
+| Store list error | Error banner, no selector, no data section |
+| Store data error | Error banner below header, data section stays empty |
+
+### Updated file tree
+
+```
+frontend/src/
+├── App.tsx
+├── index.css
+├── main.tsx
+├── app/
+│   ├── AppShell.tsx
+│   ├── AuthLayout.tsx
+│   └── RootLayout.tsx
+├── components/
+│   ├── ProtectedRoute.tsx
+│   └── dashboard/
+│       ├── ChartSkeleton.tsx
+│       ├── KpiCard.tsx
+│       ├── KpiSkeleton.tsx
+│       ├── SectionContainer.tsx
+│       ├── StockHealthChart.tsx
+│       └── StoreSelector.tsx
+├── hooks/
+│   └── useCurrentUser.ts
+├── lib/
+│   ├── api.ts
+│   ├── config.ts
+│   └── inventory.ts
+├── pages/
+│   ├── DashboardPage.tsx
+│   ├── HomePage.tsx
+│   ├── SignInPage.tsx
+│   └── SignUpPage.tsx
+├── routes/
+│   └── AppRouter.tsx
+└── types/
+    └── inventory.ts
+```
+
+### How to verify this step
+
+1. `cd frontend && npm install --include=dev && npm run dev`
+2. Sign in → should land on `/dashboard`
+3. **KPI cards** — 4 cards load with colored accents and real counts from the backend
+4. **Donut chart** — loads with the health breakdown; hovering a slice shows tooltip
+5. **Store switch** — change store in the top-right dropdown; KPI cards and chart should reload with new data immediately (skeletons show briefly during fetch)
+6. **Skeleton states** — hard-refresh the page and observe skeleton cards before data arrives
+7. **Error state** — temporarily set `VITE_API_BASE_URL` to an invalid URL and reload; error banners should appear without a blank screen
+
+---
+
 ### Command to start the frontend
 
 ```bash
 cd frontend
+npm install --include=dev
 npm run dev
 ```
 
