@@ -30,7 +30,8 @@ import DaysOfSupplyModule from '../components/dashboard/DaysOfSupplyModule';
 import LeadTimeRiskModule from '../components/dashboard/LeadTimeRiskModule';
 import ShrinkageModule from '../components/dashboard/ShrinkageModule';
 import CriticalItemsTable from '../components/dashboard/CriticalItemsTable';
-import InsightCards from '../components/dashboard/InsightCards';
+import InventoryHeatmapModule from '../components/dashboard/InventoryHeatmapModule';
+import InventoryTrendChart from '../components/dashboard/InventoryTrendChart';
 import CategoryBreakdown from '../components/dashboard/CategoryBreakdown';
 import RiskSpotlightPanel from '../components/dashboard/RiskSpotlightPanel';
 import VarianceHighlights from '../components/dashboard/VarianceHighlights';
@@ -359,6 +360,41 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      {/* ── Full-width: Inventory Health Trend ──────────────────────────────── */}
+      <section>
+        <SectionLabel>Inventory Trend</SectionLabel>
+        <ModuleCard>
+          {isLoading ? (
+            <div className="animate-pulse space-y-4">
+              <div className="flex items-start justify-between">
+                <div className="space-y-1.5">
+                  <div className="h-3.5 w-44 rounded-full bg-slate-100" />
+                  <div className="h-2.5 w-64 rounded-full bg-slate-100" />
+                </div>
+                <div className="flex gap-1">
+                  {[0,1,2,3,4].map(i => (
+                    <div key={i} className="h-7 w-20 rounded-md bg-slate-100" />
+                  ))}
+                </div>
+              </div>
+              <div className="h-56 rounded-lg bg-slate-100" />
+              <div className="flex gap-4 border-t border-slate-100 pt-3">
+                {[0,1,2].map(i => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full bg-slate-100" />
+                    <div className="h-2.5 w-14 rounded-full bg-slate-100" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : daysOfSupply ? (
+            <InventoryTrendChart data={daysOfSupply} />
+          ) : (
+            <EmptyModule />
+          )}
+        </ModuleCard>
+      </section>
+
       {/* ── Health chart + Analytics tabs ───────────────────────────────────── */}
       <section>
         <div className="grid gap-5 xl:grid-cols-3 xl:items-start">
@@ -402,7 +438,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ── Lower grid: Urgent Items + Insights ─────────────────────────────── */}
+      {/* ── Lower grid: Urgent Items + Inventory Density ────────────────────── */}
       <section>
         <div className="grid gap-5 xl:grid-cols-3 xl:items-start">
 
@@ -420,18 +456,14 @@ export default function DashboardPage() {
             </ModuleCard>
           </div>
 
-          {/* Operational insights */}
+          {/* Inventory density heatmap */}
           <div className="xl:col-span-1">
-            <SectionLabel>Operational Insights</SectionLabel>
+            <SectionLabel>Inventory Density</SectionLabel>
             <ModuleCard>
               {isLoading ? (
                 <InsightSkeleton />
-              ) : sellThrough && daysOfSupply && shrinkage ? (
-                <InsightCards
-                  sellThrough={sellThrough}
-                  daysOfSupply={daysOfSupply}
-                  shrinkage={shrinkage}
-                />
+              ) : daysOfSupply ? (
+                <InventoryHeatmapModule data={daysOfSupply} />
               ) : (
                 <EmptyModule />
               )}

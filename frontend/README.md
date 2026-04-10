@@ -986,3 +986,178 @@ None. No new env vars, no new npm packages, no Clerk configuration changes.
 12. **Store switching** — changing store reloads all data; no stale state
 13. **Mobile (< 768px)** — layout degrades gracefully; store selector visible in page area; top bar shows brand + user
 14. **Zero TypeScript errors** — `npx tsc --noEmit` exits 0
+
+---
+
+## Step 9 — Strategic Analytics Upgrade: Heatmap + Trend Chart
+
+### What was done
+
+1. **Replaced `Operational Insights` module with `InventoryHeatmapModule`**
+   - The previous four-card `InsightCards` panel was removed from the dashboard layout.
+   - A new **GitHub-style inventory health density grid** (`InventoryHeatmapModule.tsx`) takes its place in the same `xl:col-span-1` slot.
+   - `InsightCards.tsx` remains on disk but is no longer imported or rendered.
+
+2. **Added a new full-width `InventoryTrendChart` section**
+   - Inserted as a standalone full-width section under KPI cards section, improving page rhythm and information density.
+   - Uses a Recharts `AreaChart` with three stacked areas (critical / low / healthy).
+   - Five timeframe filter pills: **Last week · Last 30 days · Last 3 mos · Last 6 mos · Last 12 mos**.
+
+3. **Preserved all manual developer improvements**
+   - Same-row equal heights (`h-86` fixed on heatmap) — unchanged.
+   - Sidebar background matching topbar — unchanged.
+   - Active nav state (`bg-blue-200 text-blue-700`) — unchanged.
+   - All `*-100` tint upgrades from previous step — unchanged.
+   - Light shell and semantic color palette — unchanged.
+
+---
+
+### Files created
+
+| File | Description |
+|---|---|
+| `src/components/dashboard/InventoryHeatmapModule.tsx` | GitHub-style product health density grid |
+| `src/components/dashboard/InventoryTrendChart.tsx` | Full-width stacked area chart with timeframe filters |
+
+### Files modified
+
+| File | Change |
+|---|---|
+| `src/pages/DashboardPage.tsx` | Replaced `InsightCards` import + usage with `InventoryHeatmapModule`; added full-width `InventoryTrendChart` section with matching skeleton; updated section label from "Operational Insights" → "Inventory Density" |
+
+---
+
+### Packages added
+
+None. Both new components use Recharts (already installed at `^3.8.1`) and Tailwind CSS.
+
+---
+
+### Module: InventoryHeatmapModule — how it works
+
+- **Data source:** `DaysOfSupplyResponse` (already fetched on store load, no new API call).
+- **Layout:** Products are rendered as small 14 × 14 px colored tiles, grouped by category into rows. Category labels appear to the left of each row.
+- **Color encoding:**
+  | Color | Days of supply remaining |
+  |---|---|
+  | `bg-red-600` (deep red) | ≤ 7 days |
+  | `bg-red-400` (medium red) | 8 – 14 days |
+  | `bg-amber-400` (amber) | 15 – 30 days |
+  | `bg-emerald-300` (light green) | 31 – 60 days |
+  | `bg-emerald-500` (green) | > 60 days |
+- **Sorting:** Categories are sorted by descending critical-item count (most urgent categories appear first). Within each row, products are sorted by ascending days of supply (most critical tiles appear leftmost).
+- **Interactivity:** Hovering a tile shows an info bar above the grid with the product ID, days remaining, and category.
+- **Legend:** A compact "Supply" legend at the bottom maps each color to a day-range bucket.
+- **Summary counters:** Critical / low / healthy product counts displayed in the header.
+
+---
+
+### Module: InventoryTrendChart — how it works
+
+- **Data source:** `DaysOfSupplyResponse` (same fetch, no new API call).
+- **Derivation logic:** Since the backend does not expose time-series history, the chart projects backwards from the current snapshot using a constant-velocity assumption:
+  - For each historical point *T* days ago, each product's estimated days-of-supply is `current_dos + T`.
+  - Products are re-classified (critical / low / healthy) at each point using the live `thresholds.critical_below` and `thresholds.low_below` values.
+  - Aggregated counts per status are plotted over time.
+  - **Narrative:** Further in the past → more products were healthy. Approaching today → more products are low or critical. This reflects real inventory drawdown.
+- **Chart type:** Recharts `AreaChart` with `stackId="stack"` — three stacked semi-transparent fills (critical at the bottom, then low, then healthy at the top). Total height = constant product count; the composition shifts over time.
+- **Timeframe filters:**
+  | Label | Range | Data points |
+  |---|---|---|
+  | Last week | 7 days | 7 daily points |
+  | Last 30 days | 30 days | 10 evenly spaced |
+  | Last 3 mos | 90 days | 13 evenly spaced |
+  | Last 6 mos | 180 days | 12 evenly spaced |
+  | Last 12 mos | 365 days | 13 evenly spaced |
+- **Labeling:** Chart is clearly labelled "Stock Health Over Time · Projected from current daily sales velocity" so the derived nature of the data is transparent.
+- **Custom tooltip:** Shows the breakdown of critical / low / healthy counts plus total for each hovered data point.
+
+---
+
+### Dashboard composition after this step
+
+| # | Section | Width | Module(s) |
+|---|---|---|---|
+| 1 | Stock Status | Full | KPI row (4 cards) |
+| 2 | **Inventory Trend** | **Full (new)** | **InventoryTrendChart with 5 timeframe filters** |
+| 3 | Health + Analytics | 1/3 + 2/3 | StockHealthChart + tabbed analytics panel |
+| 4 | Urgent + Density | 2/3 + 1/3 | CriticalItemsTable + **InventoryHeatmapModule** |
+| 5 | Lower grid | 1/3 each | RiskSpotlightPanel + CategoryBreakdown + VarianceHighlights |
+
+---
+
+### Updated frontend tree
+
+```
+frontend/src/
+├── App.tsx
+├── main.tsx
+├── index.css
+├── app/
+│   ├── AppShell.tsx
+│   ├── AuthLayout.tsx
+│   ├── RootLayout.tsx
+│   └── TopBarContext.tsx
+├── components/
+│   ├── ProtectedRoute.tsx
+│   └── dashboard/
+│       ├── CategoryBreakdown.tsx
+│       ├── ChartSkeleton.tsx
+│       ├── CriticalItemsTable.tsx
+│       ├── DaysOfSupplyModule.tsx
+│       ├── InsightCards.tsx              ← retained on disk, no longer rendered
+│       ├── InventoryHeatmapModule.tsx    ← NEW: GitHub-style health density grid
+│       ├── InventoryTrendChart.tsx       ← NEW: full-width stacked area chart
+│       ├── KpiCard.tsx
+│       ├── KpiSkeleton.tsx
+│       ├── LeadTimeRiskModule.tsx
+│       ├── ModuleSkeleton.tsx
+│       ├── RiskSpotlightPanel.tsx
+│       ├── SectionContainer.tsx
+│       ├── SellThroughModule.tsx
+│       ├── ShrinkageModule.tsx
+│       ├── StockHealthChart.tsx
+│       ├── StoreSelector.tsx
+│       └── VarianceHighlights.tsx
+├── hooks/
+│   └── useCurrentUser.ts
+├── lib/
+│   ├── api.ts
+│   ├── config.ts
+│   └── inventory.ts
+├── pages/
+│   ├── DashboardPage.tsx                ← heatmap wired; trend section added
+│   ├── HomePage.tsx
+│   ├── SignInPage.tsx
+│   └── SignUpPage.tsx
+├── routes/
+│   └── AppRouter.tsx
+└── types/
+    └── inventory.ts
+```
+
+---
+
+### Manual steps required
+
+None. No new env vars, no new npm packages, no Clerk configuration changes.
+
+---
+
+### How to verify this step
+
+1. `cd frontend && npm run dev` → open `/dashboard`
+2. **Inventory Trend section** — a full-width card labelled "Inventory Trend" should appear under the KPI cards row.
+3. **Trend chart** — shows a stacked area chart with three color bands (red = critical at bottom, amber = low, green = healthy at top).
+4. **Timeframe filters** — five pill buttons: "Last week · Last 30 days · Last 3 mos · Last 6 mos · Last 12 mos". Clicking each changes the X-axis range and label format.
+5. **Trend direction** — further left (older) should show more green (healthy); rightmost point (today) matches current critical/low/healthy counts from the KPI cards.
+6. **Trend tooltip** — hover over any data point; tooltip shows critical / low / healthy breakdown + total.
+7. **Inventory Density section** — in the 2/3 + 1/3 row (right column), the old "Operational Insights" card stack is gone; a labeled "Inventory Density" heatmap grid appears.
+8. **Heatmap tiles** — small colored squares grouped by category; each row has a category label on the left; deep red tiles appear in categories with critical items.
+9. **Heatmap hover** — hovering a tile shows the product ID, days remaining, and category in the info bar above the grid.
+10. **Heatmap legend** — bottom of the card shows a color key: ≤7d, ≤14d, ≤30d, ≤60d, 60d+.
+11. **Heatmap summary** — header shows total critical / low / healthy counts for quick orientation.
+12. **Loading skeletons** — hard-refresh; the trend card shows an animated multi-element skeleton; the density card shows the existing `InsightSkeleton` placeholder.
+13. **Store switch** — changing the store reloads all panels including heatmap and trend chart.
+14. **Shell unchanged** — light sidebar, white topbar, `bg-blue-200 text-blue-700` active nav state, equal row heights all preserved.
+15. **Zero TypeScript errors** — `npx tsc --noEmit` exits 0.
