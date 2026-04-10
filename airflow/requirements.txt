@@ -1,0 +1,12 @@
+pandas==3.0.1
+pymongo==4.16.0
+great-expectations==0.18.19
+apache-airflow-providers-smtp==2.4.2
+dvc[gs]
+PyGithub
+google-cloud-storage
+google-cloud-secret-manager
+PyYAML==6.0.3
+python-dotenv==1.2.1
+scipy
+numpy==2.4.2

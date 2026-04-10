@@ -12,8 +12,8 @@ RUN apt-get update && \
 USER airflow
 
 # Install Python dependencies
-COPY requirements-airflow.txt /tmp/requirements-airflow.txt
-RUN pip install --no-cache-dir -r /tmp/requirements-airflow.txt
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 # Bake in DAGs, scripts, params, and DVC config
 COPY --chown=airflow:root dags/ /opt/airflow/dags/

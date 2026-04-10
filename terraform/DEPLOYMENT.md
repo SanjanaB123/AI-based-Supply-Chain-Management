@@ -277,7 +277,7 @@ After the initial deployment, **nobody needs to do anything**. The data pipeline
 | File | Purpose |
 |------|---------|
 | `airflow/Dockerfile` | Custom Airflow image with DAGs baked in |
-| `airflow/requirements-airflow.txt` | Python packages for Airflow |
+| `airflow/requirements.txt` | Python packages for Airflow |
 | `airflow/params.yaml` | Pipeline parameters (defaults) |
 | `terraform/main.tf` | Root Terraform config |
 | `terraform/variables.tf` | Input variables |
