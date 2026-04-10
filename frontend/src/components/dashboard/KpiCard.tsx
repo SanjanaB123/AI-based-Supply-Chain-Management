@@ -7,30 +7,27 @@ interface Props {
   color: ColorVariant;
 }
 
-const barColor: Record<ColorVariant, string> = {
+const dotColor: Record<ColorVariant, string> = {
   red: 'bg-red-500',
   amber: 'bg-amber-500',
   emerald: 'bg-emerald-500',
   indigo: 'bg-indigo-500',
 };
 
-const valueColor: Record<ColorVariant, string> = {
-  red: 'text-red-600',
-  amber: 'text-amber-600',
-  emerald: 'text-emerald-600',
-  indigo: 'text-indigo-600',
-};
-
 export default function KpiCard({ label, value, subtext, color }: Props) {
   return (
-    <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-      <div className={`h-1.5 ${barColor[color]}`} />
-      <div className="p-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{label}</p>
-        <p className={`mt-2 text-4xl font-bold ${valueColor[color]}`}>
+    <div className="flex flex-col gap-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+          {label}
+        </p>
+        <span className={`h-2 w-2 shrink-0 rounded-full ${dotColor[color]}`} />
+      </div>
+      <div>
+        <p className="text-3xl font-bold tracking-tight text-slate-900">
           {value.toLocaleString()}
         </p>
-        <p className="mt-1.5 text-sm text-gray-500">{subtext}</p>
+        <p className="mt-1 text-xs text-slate-400">{subtext}</p>
       </div>
     </div>
   );

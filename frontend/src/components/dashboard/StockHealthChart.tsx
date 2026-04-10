@@ -1,5 +1,7 @@
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Tooltip, ResponsiveContainer } from 'recharts';
 import type { StockHealthResponse, StockStatus } from '../../types/inventory';
+
+// ── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_COLORS: Record<StockStatus, string> = {
   critical: '#ef4444',
@@ -13,46 +15,49 @@ const STATUS_LABELS: Record<StockStatus, string> = {
   healthy: 'Healthy',
 };
 
+const STATUS_SUBTEXTS: Record<StockStatus, string> = {
+  critical: 'Need immediate reorder',
+  low: 'Approaching reorder point',
+  healthy: 'Adequate supply',
+};
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 interface Props {
   data: StockHealthResponse;
 }
 
 export default function StockHealthChart({ data }: Props) {
+  // Embed fill into data objects — recharts v3 reads `fill` per-entry without Cell
   const chartData = data.breakdown.map(item => ({
     name: item.status,
     value: item.count,
+    fill: STATUS_COLORS[item.status],
   }));
 
-  return (
-    <div className="rounded-xl bg-white shadow-sm p-6">
-      <h3 className="mb-6 text-sm font-semibold text-gray-700">
-        Stock Health Distribution
-      </h3>
-      <div className="flex flex-col gap-8 md:flex-row md:items-center md:gap-12">
+  const healthyItem = data.breakdown.find(b => b.status === 'healthy');
+  const healthPct = healthyItem?.percentage ?? 0;
 
-        {/* Donut chart — DOM overlay for center label avoids SVG text complexity */}
-        <div className="relative mx-auto h-52 w-52 shrink-0 md:mx-0">
+  return (
+    <div className="rounded-xl border border-slate-100 bg-white shadow-sm">
+      <div className="flex flex-col gap-6 p-5">
+
+        {/* Donut with DOM center label */}
+        <div className="relative mx-auto h-44 w-44 shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={chartData}
                 cx="50%"
                 cy="50%"
-                innerRadius={68}
-                outerRadius={96}
+                innerRadius={58}
+                outerRadius={84}
                 paddingAngle={3}
                 dataKey="value"
                 startAngle={90}
                 endAngle={-270}
                 strokeWidth={0}
-              >
-                {chartData.map((entry, i) => (
-                  <Cell
-                    key={`cell-${i}`}
-                    fill={STATUS_COLORS[entry.name as StockStatus]}
-                  />
-                ))}
-              </Pie>
+              />
               <Tooltip
                 formatter={(value, name) => [
                   `${value ?? 0} products`,
@@ -60,56 +65,78 @@ export default function StockHealthChart({ data }: Props) {
                 ]}
                 contentStyle={{
                   borderRadius: '8px',
-                  border: '1px solid #e5e7eb',
-                  fontSize: '13px',
-                  boxShadow: '0 1px 6px rgba(0,0,0,0.07)',
+                  border: '1px solid #e2e8f0',
+                  fontSize: '12px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  padding: '6px 10px',
                 }}
               />
             </PieChart>
           </ResponsiveContainer>
-          {/* Center label overlay */}
+          {/* Center overlay */}
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-bold text-gray-900">{data.total_products}</span>
-            <span className="mt-0.5 text-xs text-gray-400">products</span>
+            <span className="text-3xl font-bold tracking-tight text-slate-900">
+              {data.total_products}
+            </span>
+            <span className="text-[11px] font-medium uppercase tracking-widest text-slate-400">
+              products
+            </span>
           </div>
         </div>
 
-        {/* Breakdown legend */}
-        <div className="flex-1">
-          <div className="divide-y divide-gray-100">
+        {/* Legend */}
+        <div className="min-w-0">
+          <div className="divide-y divide-slate-50">
             {data.breakdown.map(item => (
               <div
                 key={item.status}
-                className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0"
+                className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
                   <span
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    className="mt-1 h-2 w-2 shrink-0 rounded-full"
                     style={{ backgroundColor: STATUS_COLORS[item.status] }}
                   />
-                  <span className="text-sm font-medium text-gray-700">
-                    {STATUS_LABELS[item.status]}
-                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">
+                      {STATUS_LABELS[item.status]}
+                    </p>
+                    <p className="text-xs text-slate-400">{STATUS_SUBTEXTS[item.status]}</p>
+                  </div>
                 </div>
-                <div className="flex items-baseline gap-3">
-                  <span className="text-sm font-bold text-gray-900">{item.count}</span>
-                  <span className="w-12 text-right text-xs text-gray-400">
-                    {item.percentage}%
-                  </span>
+                <div className="flex items-baseline gap-3 shrink-0 pl-4">
+                  <span className="text-sm font-semibold text-slate-900">{item.count}</span>
+                  <span className="w-9 text-right text-xs text-slate-400">{item.percentage}%</span>
                 </div>
               </div>
             ))}
           </div>
-          <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3.5">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+
+          {/* Total row */}
+          <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-3">
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
               Total
             </span>
-            <span className="text-sm font-bold text-gray-900">
-              {data.total_products} products
-            </span>
+            <div className="flex items-baseline gap-3">
+              <span className="text-sm font-semibold text-slate-900">{data.total_products}</span>
+              <span className="w-9 text-right text-xs text-slate-400">100%</span>
+            </div>
           </div>
         </div>
+      </div>
 
+      {/* Health score footer */}
+      <div className="flex items-center justify-between border-t border-slate-50 px-5 py-3.5">
+        <span className="text-xs text-slate-400">Store health score</span>
+        <div className="flex items-center gap-2.5">
+          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+              style={{ width: `${healthPct}%` }}
+            />
+          </div>
+          <span className="text-xs font-semibold text-slate-700">{healthPct}%</span>
+        </div>
       </div>
     </div>
   );
