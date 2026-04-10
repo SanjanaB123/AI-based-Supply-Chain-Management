@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 
 # Load .env from root directory BEFORE any other imports that read env vars at module level
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 import logging
 from contextlib import asynccontextmanager

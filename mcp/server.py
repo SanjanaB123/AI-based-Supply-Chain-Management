@@ -12,14 +12,14 @@ import mlflow
 import mlflow.pyfunc
 from datetime import datetime
 
-# Load environment variables from root .env (two levels up from mcp/)
-_root_env = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
+# Load environment variables from .env in the same folder as server.py
+_root_env = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(_root_env)
 
 # Resolve GOOGLE_APPLICATION_CREDENTIALS to an absolute path if it's relative
 _gcp_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 if _gcp_creds and not os.path.isabs(_gcp_creds):
-    _abs_creds = os.path.join(os.path.dirname(__file__), '..', '..', _gcp_creds)
+    _abs_creds = os.path.join(os.path.dirname(__file__), _gcp_creds)
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.abspath(_abs_creds)
 
 # Initialize FastMCP server

@@ -2,6 +2,7 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV TRANSFORMERS_CACHE=/app/.cache
 
 WORKDIR /app
 
@@ -11,12 +12,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py .
 COPY routes_inventory.py .
 COPY routes_chat.py .
-COPY routes_auth.py .
-COPY auth.py .
 COPY models.py .
 COPY database.py .
+COPY clerk_auth.py .
+COPY training/ ./training/
 COPY config/ ./config/
-COPY static/ ./static/
+
+# Train SetFit classifier at build time — model saved to config/inventory_query_classifier
+RUN python training/train_router.py
 
 # Run as non-root user
 RUN adduser --disabled-password --no-create-home appuser

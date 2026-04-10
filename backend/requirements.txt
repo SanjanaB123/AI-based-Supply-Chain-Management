@@ -5,7 +5,6 @@ PyJWT[crypto]>=2.8.0
 pydantic[email]==2.9.2
 httpx==0.27.2
 python-multipart==0.0.12
-pymongo==4.8.0
 python-dotenv==1.0.1
 slowapi==0.1.9
 
@@ -24,4 +23,3 @@ numpy>=1.20.0
 
 # MongoDB dependencies
 pymongo[srv]==4.8.0
-bson==0.5.10
