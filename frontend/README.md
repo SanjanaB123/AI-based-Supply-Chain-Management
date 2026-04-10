@@ -1716,14 +1716,15 @@ A targeted polish pass over the landing page only. Dashboard, auth pages, and na
 
 #### 3. Team section — 3×2 grid with vertical cards (`TeamSection.tsx`)
 - Replaced the cramped flex-wrap horizontal card layout with a proper **CSS grid**: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` — 3 columns on desktop, 2 on tablet, 1 on mobile.
-- Cards are now **vertical and centered**: large 56×56 initials avatar at the top, name below (semibold), contribution text below that (allowed to wrap — no `truncate`).
-- Avatar size increased from `h-10 w-10` to `h-14 w-14`; font size bumped from 12px to 15px for better presence.
-- Updated contribution text strings to match the task spec:
+- Cards are now **vertical and centered**: large `h-36 w-36` avatar at the top, name below (semibold), contribution text below that (allowed to wrap — no `truncate`).
+- Each card has a **per-member tinted background** (`memberBg` hex field on the data object) so the grid reads as a cohesive colour-coded set rather than uniform white tiles.
+- Avatar circles updated to `bg-*-200` tones (one step deeper than the previous `bg-*-100`) to contrast against the tinted card background.
+- **Photo support** baked in: each member has an `img` path (`/images/<name>.png`). The avatar renders both layers — initials div always present underneath (`absolute inset-0`), photo stacked on top; `onError` handler sets `display:none` on the image if the file is missing, revealing the initials automatically. No state management needed.
+- Updated contribution text strings:
   - Aryan Mehta: `Frontend · Frontend CI/CD · Designing · Branding`
   - Vedashree Bane: `Containerization · ML Models CI/CD`
   - Somya Padhy: `Backend · Backend Deployment`
-- All 6 members now display correctly without any truncation or cramping.
-- Consistent `px-6 py-9` internal padding across all 6 cards.
+- All 6 members display without truncation; consistent `px-6 py-9` internal padding across all cards.
 
 #### 4. Footer — light mode premium SaaS footer (`LandingFooter.tsx`)
 - Switched from dark (`bg-slate-950`) to light (`bg-slate-50`) to match the overall landing page palette.
@@ -1731,7 +1732,7 @@ A targeted polish pass over the landing page only. Dashboard, auth pages, and na
 - Brand block: Stratos wordmark, 2-line tagline, project attribution pill (Northeastern University · MLOps · Spring 2026 inside a white bordered pill with an emerald dot).
 - Link columns renamed from "Company" to "Project"; footer now has "Product" and "Project" groups.
 - Product links (`Platform`, `How it works`, `Features`) use real `href` anchors pointing to `#features` / `#workflow`.
-- Project links (`Team`, `Documentation`, `GitHub`) point to `#team` / `#`.
+- Project links: `Team` → `#team`, `Documentation` → `#`. **GitHub** is a hardcoded `<a>` outside the links constant, pointing to the real repo URL (`https://github.com/SanjanaB123/AI-based-Supply-Chain-Management`) with `target="_blank" rel="noreferrer noopener"`, an underline style, and a `↗` indicator.
 - Section headers: `text-slate-400 uppercase tracking-widest text-[11px]`.
 - Link text: `text-slate-500 hover:text-slate-900` for clean light-mode readability.
 - Bottom bar: `border-t border-slate-200`, copyright left, project credit right — both in `text-slate-400`.
@@ -1826,8 +1827,8 @@ None. No new env vars, no new packages, no Clerk changes.
 2. Open `http://localhost:5173/` (signed out)
 3. **Hero border** — scroll slowly; the dashboard preview should float cleanly above the Features section with no hard seam or double-line border visible at the transition
 4. **Workflow section** — three cards sit in a row separated by `→` arrow connectors (desktop); each card has the step number badge (01/02/03) at top-left followed by the icon, title, and body in consistent alignment; on mobile cards stack with a vertical line connector between them
-5. **Team section** — six cards in a 3×2 grid (desktop), 2×3 (tablet), 1×6 (mobile); each card is vertical — large initials circle at top-center, name below (semibold), role text below that (wraps cleanly); Aryan Mehta appears in the first card
-6. **Footer** — light gray background (`bg-slate-50`), not dark; brand wordmark top-left of the brand column; attribution pill (Northeastern · MLOps · Spring 2026) below the tagline; "Product" and "Project" link columns; clean bottom bar with copyright
+5. **Team section** — six cards in a 3×2 grid (desktop), 2×3 (tablet), 1×6 (mobile); each card has a distinct tinted background colour; where a photo exists at `/images/<name>.png` the photo renders, otherwise the initials circle shows (test by renaming/removing the image file — the card should fall back gracefully); Aryan Mehta appears first
+6. **Footer** — light gray background (`bg-slate-50`), not dark; brand wordmark top-left; attribution pill below tagline; "Product" and "Project" link columns; GitHub link opens the real repo in a new tab with an `↗` indicator; clean bottom bar with copyright
 7. **Features cards** — hover a card; the lift shadow should be slightly more elevated; icon containers are slightly larger
 8. **Dashboard unchanged** — `/dashboard` layout, sidebar, modules, and nav are exactly as before
 9. **Auth pages unchanged** — `/sign-in` and `/sign-up` split layout unchanged

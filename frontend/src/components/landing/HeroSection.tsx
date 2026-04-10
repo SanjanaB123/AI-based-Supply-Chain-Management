@@ -82,7 +82,7 @@ function DashboardPreview() {
       />
 
       {/* Browser chrome — light frame */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/[0.12] ring-1 ring-slate-200/80">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/12 ring-1 ring-slate-200/80">
 
         {/* Browser top bar */}
         <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/90 px-4 py-2.5">
@@ -111,7 +111,7 @@ function DashboardPreview() {
         <div className="flex bg-slate-950" style={{ height: '320px' }}>
 
           {/* Sidebar */}
-          <aside className="hidden sm:flex w-40 shrink-0 flex-col border-r border-white/[0.05] bg-slate-950/60 px-2 py-3">
+          <aside className="hidden sm:flex w-40 shrink-0 flex-col border-r border-white/5 bg-slate-950/60 px-2 py-3">
             <div className="mb-4 flex items-center gap-1 px-1.5">
               <span className="text-[11px] font-bold tracking-tight text-white">Stratos</span>
               <span className="text-[7px] font-semibold uppercase tracking-wider text-blue-400">AI</span>
@@ -162,7 +162,7 @@ function DashboardPreview() {
               {KPI_CARDS.map((kpi) => (
                 <div
                   key={kpi.label}
-                  className="rounded-lg border border-white/[0.06] bg-slate-800/30 px-2.5 py-2"
+                  className="rounded-lg border border-white/6 bg-slate-800/30 px-2.5 py-2"
                 >
                   <p className="mb-0.5 text-[8px] leading-tight text-slate-500">{kpi.label}</p>
                   <p className="text-[13px] font-bold leading-tight text-white">{kpi.value}</p>
@@ -177,7 +177,7 @@ function DashboardPreview() {
             <div className="mb-2 grid grid-cols-5 gap-2">
 
               {/* Bar chart */}
-              <div className="col-span-3 rounded-lg border border-white/[0.06] bg-slate-800/20 p-3">
+              <div className="col-span-3 rounded-lg border border-white/6 bg-slate-800/20 p-3">
                 <p className="mb-2 text-[9px] font-medium text-slate-400">Inventory Trend</p>
                 <div className="flex items-end gap-1" style={{ height: '64px' }}>
                   {BAR_HEIGHTS.map((h, i) => (
@@ -197,7 +197,7 @@ function DashboardPreview() {
               </div>
 
               {/* Donut */}
-              <div className="col-span-2 rounded-lg border border-white/[0.06] bg-slate-800/20 p-3">
+              <div className="col-span-2 rounded-lg border border-white/6 bg-slate-800/20 p-3">
                 <p className="mb-2 text-[9px] font-medium text-slate-400">Stock Health</p>
                 <div className="flex items-center gap-3">
                   <div className="relative h-11 w-11 shrink-0">
@@ -226,8 +226,8 @@ function DashboardPreview() {
             </div>
 
             {/* Table */}
-            <div className="overflow-hidden rounded-lg border border-white/[0.05] bg-slate-800/15">
-              <div className="grid grid-cols-4 gap-2 border-b border-white/[0.05] px-3 py-1.5">
+            <div className="overflow-hidden rounded-lg border border-white/5 bg-slate-800/15">
+              <div className="grid grid-cols-4 gap-2 border-b border-white/5 px-3 py-1.5">
                 {['Product', 'Stock', 'Forecast', 'Status'].map((col) => (
                   <span key={col} className="text-[8px] font-medium text-slate-600">{col}</span>
                 ))}
@@ -235,7 +235,7 @@ function DashboardPreview() {
               {TABLE_ROWS.map((row, i) => (
                 <div
                   key={row.sku}
-                  className={['grid grid-cols-4 gap-2 px-3 py-1.5', i < TABLE_ROWS.length - 1 ? 'border-b border-white/[0.03]' : ''].join(' ')}
+                  className={['grid grid-cols-4 gap-2 px-3 py-1.5', i < TABLE_ROWS.length - 1 ? 'border-b border-white/3' : ''].join(' ')}
                 >
                   <span className="truncate text-[8px] text-slate-300">{row.sku}</span>
                   <span className="text-[8px] text-slate-400">{row.stock}</span>
@@ -299,7 +299,7 @@ export default function HeroSection() {
       {/* Subtle radial hero tint */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-[680px]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-170"
         style={{
           background:
             'radial-gradient(ellipse 85% 55% at 50% 0%, rgba(59,130,246,0.07) 0%, transparent 70%)',

@@ -11,7 +11,6 @@ const PRODUCT_LINKS = [
 const PROJECT_LINKS = [
   { label: 'Team',          href: '#team'      },
   { label: 'Documentation', href: '#'          },
-  { label: 'GitHub',        href: '#'          },
 ] as const;
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -92,6 +91,17 @@ export default function LandingFooter() {
                   </a>
                 </li>
               ))}
+
+              <li>
+                <a
+                  href="https://github.com/SanjanaB123/AI-based-Supply-Chain-Management"
+                  target='_blank'
+                  rel='noreferrer noopener'
+                  className="text-[13.5px] text-slate-500 transition-colors duration-150 hover:text-slate-900 underline"
+                >
+                  GitHub ↗
+                </a>
+              </li>
             </ul>
           </div>
         </div>

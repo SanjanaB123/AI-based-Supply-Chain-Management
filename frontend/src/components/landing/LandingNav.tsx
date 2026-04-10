@@ -57,7 +57,7 @@ export default function LandingNav() {
       className={[
         'fixed inset-x-0 top-0 z-50 h-16 border-b transition-all duration-300',
         scrolled
-          ? 'border-slate-200 bg-white/96 shadow-sm shadow-slate-900/[0.06] backdrop-blur-md'
+          ? 'border-slate-200 bg-white/96 shadow-sm shadow-slate-900/6 backdrop-blur-md'
           : 'border-slate-200/70 bg-white/80 backdrop-blur-md',
       ].join(' ')}
     >

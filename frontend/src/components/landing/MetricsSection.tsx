@@ -108,9 +108,9 @@ export default function MetricsSection() {
 
         {/* Divider strip */}
         <div className="mt-20 flex items-center justify-center gap-3">
-          <div className="h-px w-24 bg-gradient-to-r from-transparent to-slate-700" />
+          <div className="h-px w-24 bg-linear-to-r from-transparent to-slate-700" />
           <div className="h-1 w-1 rounded-full bg-blue-500/60" />
-          <div className="h-px w-24 bg-gradient-to-l from-transparent to-slate-700" />
+          <div className="h-px w-24 bg-linear-to-l from-transparent to-slate-700" />
         </div>
 
         {/* Tagline below metrics */}
