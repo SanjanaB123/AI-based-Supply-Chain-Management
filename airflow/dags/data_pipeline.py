@@ -135,7 +135,6 @@ def version_with_dvc(features_path: str, **context) -> str:
     features_path = str(features_path).strip('"').strip("'")
     dvc_root      = Path("/opt/airflow")
     dvc_config    = dvc_root / ".dvc" / "config"
-    creds_path    = Path("/opt/airflow/gcp-key.json")
     bucket_name   = os.getenv("GCS_BUCKET_NAME", "").strip()
     github_token  = os.getenv("GITHUB_TOKEN", "").strip()
     github_repo   = os.getenv("GITHUB_REPO", "SanjanaB123/AI-based-Supply-Chain-Management").strip()
@@ -161,9 +160,8 @@ def version_with_dvc(features_path: str, **context) -> str:
     run_cmd(["dvc", "add", features_path])
 
     remotes = run_cmd(["dvc", "remote", "list"])
-    if not remotes and bucket_name and creds_path.exists():
+    if not remotes and bucket_name:
         run_cmd(["dvc", "remote", "add", "-d", "storage", f"gs://{bucket_name}/dvc"])
-        run_cmd(["dvc", "remote", "modify", "storage", "credentialpath", str(creds_path)])
         remotes = run_cmd(["dvc", "remote", "list"])
 
     if remotes:
@@ -177,7 +175,6 @@ def version_with_dvc(features_path: str, **context) -> str:
         return features_path
 
     dvc_file      = features_path + ".dvc"
-    dvc_cfg       = str(dvc_root / ".dvc" / "config")
     gitignore     = str(Path(features_path).parent / ".gitignore")
     commit_msg    = f"Update DVC pointer: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
     files_to_push = [dvc_file]
