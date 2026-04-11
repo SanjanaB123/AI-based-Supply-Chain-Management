@@ -4,27 +4,11 @@
 # Think of it as: "Build networking FIRST, then database, then Cloud Run"
 # ======================================================================
 
-# ── Enable required GCP APIs ─────────────────────────────────────
-# These are like "turning on" each GCP service before using it
-resource "google_project_service" "required_apis" {
-  for_each = toset([
-    "run.googleapis.com",
-    "sqladmin.googleapis.com",
-    "artifactregistry.googleapis.com",
-    "secretmanager.googleapis.com",
-    "vpcaccess.googleapis.com",
-    "compute.googleapis.com",
-    "servicenetworking.googleapis.com",
-    "cloudresourcemanager.googleapis.com",
-    "iam.googleapis.com",
-  ])
-
-  project = var.project_id
-  service = each.value
-
-  disable_dependent_services = false
-  disable_on_destroy         = false
-}
+# NOTE: Required GCP APIs must be enabled manually in the GCP Console
+# before running Terraform. The service account does not have
+# serviceusage.services.enable permission. Enable these APIs:
+#   - Cloud Run, Cloud SQL Admin, Artifact Registry, Secret Manager,
+#     VPC Access, Compute Engine, Service Networking, Cloud Resource Manager, IAM
 
 # ── 1. Networking (VPC + connector) ──────────────────────────────
 module "networking" {
@@ -33,8 +17,6 @@ module "networking" {
   project_id  = var.project_id
   region      = var.region
   environment = var.environment
-
-  depends_on = [google_project_service.required_apis]
 }
 
 # ── 2. Cloud SQL (managed Postgres) ──────────────────────────────
@@ -59,8 +41,6 @@ module "artifact_registry" {
   project_id  = var.project_id
   region      = var.region
   environment = var.environment
-
-  depends_on = [google_project_service.required_apis]
 }
 
 # ── 3b. GCS Bucket (pipeline data storage) ──────────────────────
@@ -71,8 +51,6 @@ module "gcs" {
   region          = var.region
   environment     = var.environment
   gcs_bucket_name = var.gcs_bucket_name
-
-  depends_on = [google_project_service.required_apis]
 }
 
 # ── 4. IAM (service account + permissions) ───────────────────────
@@ -81,8 +59,6 @@ module "iam" {
 
   project_id  = var.project_id
   environment = var.environment
-
-  depends_on = [google_project_service.required_apis]
 }
 
 # ── 5. Secret Manager (all passwords and keys) ──────────────────
@@ -104,7 +80,7 @@ module "secret_manager" {
   github_token           = var.github_token
   airflow_admin_password = var.airflow_admin_password
 
-  depends_on = [google_project_service.required_apis, module.cloud_sql]
+  depends_on = [module.cloud_sql]
 }
 
 # ── 6. Cloud Run (Airflow services + init job) ──────────────────

@@ -32,6 +32,25 @@ jobs:
         with:
           credentials_json: "${{ secrets.GCP_SA_KEY }}"
 
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Enable required GCP APIs
+        run: |
+          for api in \
+            run.googleapis.com \
+            sqladmin.googleapis.com \
+            artifactregistry.googleapis.com \
+            secretmanager.googleapis.com \
+            vpcaccess.googleapis.com \
+            compute.googleapis.com \
+            servicenetworking.googleapis.com \
+            cloudresourcemanager.googleapis.com \
+            iam.googleapis.com; do
+            echo "Enabling $api..."
+            gcloud services enable "$api" --project=${{ env.GCP_PROJECT_ID }} || true
+          done
+
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
