@@ -1,4 +1,5 @@
-# AI-based-Supply-Chain-Management
+# Suppl.AI
+
 
 ## Overview
 
