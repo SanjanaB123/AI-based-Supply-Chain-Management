@@ -5,7 +5,7 @@ name: Deploy Airflow to Cloud Run
 # - When you manually trigger it from GitHub Actions tab
 on:
   push:
-    branches: [main, vedashree, modelling]
+    branches: [main, vedashree, modelling, somya]
     paths:
       - "airflow/**"
       - "terraform/**"
@@ -51,7 +51,6 @@ jobs:
             -var="airflow_jwt_secret=${{ secrets.TF_VAR_airflow_jwt_secret }}" \
             -var="mongo_uri=${{ secrets.TF_VAR_mongo_uri }}" \
             -var="github_token=${{ secrets.TF_VAR_github_token }}" \
-            -var="airflow_admin_password=${{ secrets.TF_VAR_airflow_admin_password }}" \
             -var="airflow_admin_password=${{ secrets.TF_VAR_airflow_admin_password }}" \
             -target=module.networking \
             -target=module.cloud_sql \
