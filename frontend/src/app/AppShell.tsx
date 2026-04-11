@@ -2,6 +2,9 @@ import { UserButton, useUser } from '@clerk/clerk-react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { TopBarProvider, useTopBar } from './TopBarContext';
 import { useTheme } from './theme/useTheme';
+import { useChatAssistant } from '../hooks/useChatAssistant';
+import { DashboardFooterBar } from '../components/chat/DashboardFooterBar';
+import { ChatPanel } from '../components/chat/ChatPanel';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -228,6 +231,7 @@ function AppShellInner() {
   const { topBarSlot, pageTitle, pageSubtitle } = useTopBar();
   const { user, isLoaded } = useUser();
   const { theme, toggleTheme } = useTheme();
+  const chat = useChatAssistant();
 
   const displayName = isLoaded
     ? user?.firstName
@@ -248,7 +252,7 @@ function AppShellInner() {
             <img
               src={theme === 'dark' ? '/icons/logo-dark.png' : '/icons/logo-light.png'}
               alt="Stratos"
-              className="h-7 w-auto"
+              className="h-10 w-auto"
             />
           </Link>
         </div>
@@ -410,7 +414,33 @@ function AppShellInner() {
         <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900 px-6 py-7 lg:px-10 lg:py-8">
           <Outlet />
         </main>
+
+        {/* Footer bar */}
+        <DashboardFooterBar isOpen={chat.isOpen} onToggle={chat.toggle} />
       </div>
+
+      {/*
+        Backdrop blur overlay — purely visual, pointer-events-none so the
+        dashboard canvas stays interactive. Fades in/out with the chat panel.
+        z-40 sits below the chat panel (z-50) but above all page content.
+      */}
+      <div
+        aria-hidden="true"
+        className={`fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[2px] pointer-events-none transition-opacity duration-300 ${
+          chat.isOpen ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+
+      {/* Floating AI assistant panel (fixed, above footer) */}
+      <ChatPanel
+        isOpen={chat.isOpen}
+        messages={chat.messages}
+        isSending={chat.isSending}
+        error={chat.error}
+        onClose={chat.close}
+        onClear={chat.clearChat}
+        onSend={chat.sendMessage}
+      />
     </div>
   );
 }

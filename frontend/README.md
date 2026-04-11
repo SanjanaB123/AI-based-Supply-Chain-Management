@@ -2042,3 +2042,304 @@ The text "Stratos" + "AI" wordmarks in all nav locations have been replaced with
 8. Toggle theme from the **sidebar** Appearance row — same result, synced with top-bar
 9. Refresh — theme persists from localStorage
 10. `npx tsc --noEmit` — zero TypeScript errors
+
+---
+
+## Step 14 — Dashboard Footer Bar & Stratos AI Assistant Chat UI
+
+### What was done
+
+1. Built a premium **dashboard footer bar** that spans the bottom of the authenticated shell with three sections: AI status (left), copyright (center), and the AI assistant launcher (right).
+2. Integrated `GET /api/ai-status` into an `AiStatusIndicator` component that polls every 30 seconds and shows a live dot + label.
+3. Built a fully functional **Stratos AI Assistant** chat panel backed by `POST /api/chat`.
+4. Implemented per-user conversation persistence via `localStorage` keyed by Clerk `userId`.
+5. Mounted everything inside `AppShell` so the footer and chat are scoped exclusively to the authenticated dashboard.
+
+---
+
+### Architecture
+
+#### Footer bar
+
+```
+DashboardFooterBar (h-10 shrink-0 strip at the bottom of the right column)
+├── Left  → AiStatusIndicator  (polls /api/ai-status every 30 s)
+├── Center → "© 2026 Stratos. All rights reserved." (muted, centered)
+└── Right  → ChatLauncher button (opens / closes ChatPanel)
+```
+
+The footer is a `shrink-0` flex row appended below `<main>` inside the right column of `AppShell`. It inherits the same `bg-white dark:bg-slate-950` and `border-t border-slate-200 dark:border-slate-800` visual language as the top bar.
+
+#### Chat panel
+
+```
+ChatPanel (fixed right-4 bottom-12 z-50, CSS slide-up/fade transition)
+├── ChatHeader   — title, "Inventory copilot" subtitle, online dot, clear & close buttons
+├── ChatMessageList  — scrollable, auto-scrolls to latest message
+│   ├── ChatMessageBubble (user = blue right, assistant = slate left)
+│   ├── TypingIndicator   — three staggered bounce dots while awaiting response
+│   └── inline error banner on API failure
+├── ChatEmptyState — sparkle icon + 5 suggested inventory prompts (shown when no messages)
+└── ChatComposer  — auto-resizing textarea, send button, Enter-to-send / Shift+Enter newline
+```
+
+---
+
+### Files created
+
+| File | Purpose |
+|------|---------|
+| `src/types/chat.ts` | `ChatMessage`, `ChatRequest`, `ChatResponse`, `AiStatusResponse` types |
+| `src/lib/chat.ts` | `sendChatMessage()` and `fetchAiStatus()` API functions |
+| `src/hooks/useChatAssistant.ts` | All chat state: open/close, messages, send, clear, localStorage persistence |
+| `src/components/chat/AiStatusIndicator.tsx` | Polls `/api/ai-status`, shows dot + label |
+| `src/components/chat/DashboardFooterBar.tsx` | Footer bar shell (3-section flex layout) |
+| `src/components/chat/ChatLauncher.tsx` | Footer-right pill button that toggles the panel |
+| `src/components/chat/ChatPanel.tsx` | Fixed floating panel with CSS open/close transition |
+| `src/components/chat/ChatHeader.tsx` | Panel header with title, clear, close actions |
+| `src/components/chat/ChatMessageList.tsx` | Scrollable message list, auto-scrolls to bottom |
+| `src/components/chat/ChatMessageBubble.tsx` | Individual user / assistant message bubble |
+| `src/components/chat/ChatComposer.tsx` | Auto-resizing textarea + send button |
+| `src/components/chat/ChatEmptyState.tsx` | Empty-state with sparkle icon + 5 prompt chips |
+| `src/components/chat/TypingIndicator.tsx` | Three staggered bouncing dots while awaiting reply |
+
+### Files modified
+
+| File | Change |
+|------|--------|
+| `src/app/AppShell.tsx` | Imported chat components, wired `useChatAssistant`, added `DashboardFooterBar` and `ChatPanel` |
+
+---
+
+### API routes used
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/chat` | `POST` | Send user message, receive assistant response |
+| `/api/ai-status` | `GET` | Poll AI backend health for footer indicator |
+
+**`/api/chat` request body:**
+```json
+{ "message": "What are the low stock items?", "username": "<clerk-userId>" }
+```
+
+**`/api/chat` response:**
+```json
+{ "response": "...", "agent": "ai-assistant" }
+```
+
+**`/api/ai-status` response:**
+```json
+{ "status": "online", "ai_enabled": true, "model_loaded": true, "mcp_server": "https://..." }
+```
+
+---
+
+### localStorage persistence strategy
+
+- **Key format:** `stratos-chat:<userId>` where `userId` is the Clerk `userId` string.
+- **On mount:** `useChatAssistant` reads from `localStorage` the first time a `userId` becomes available and restores the message array.
+- **On every message change:** the full message array is serialised and written back to `localStorage`.
+- **On clear chat:** `localStorage.removeItem(key)` removes only this user's history; other users are unaffected.
+- **On sign-out / different user:** a different `userId` produces a different key, so conversation history is never shared between accounts.
+- Storage errors (quota exceeded, private-browsing restrictions) are caught and silenced — the chat remains functional without persistence.
+
+---
+
+### How to verify footer + chat in light and dark mode
+
+```
+1. npm run dev  (inside frontend/)
+2. Sign in and navigate to /dashboard
+```
+
+**Footer bar:**
+- [ ] Footer appears as a slim bar at the very bottom of the dashboard shell
+- [ ] Left section: dot + "AI online" (green) / "AI unavailable" (red) / "Connecting…" (grey) — updates within 30 s
+- [ ] When AI is online and model is loaded: secondary label "Model loaded" appears after the separator
+- [ ] Center: "© 2026 Stratos. All rights reserved." is centered
+- [ ] Right: "Ask Stratos AI" pill button is visible
+- [ ] In **dark mode**: footer uses `slate-950` background, `slate-800` border — matches sidebar/top bar
+
+**Chat panel:**
+- [ ] Clicking "Ask Stratos AI" slides up the chat panel from above the footer
+- [ ] Panel shows the empty state with sparkle icon and 5 suggested prompts
+- [ ] Clicking a prompt chip populates and sends it immediately
+- [ ] User bubble appears right-aligned in blue; assistant response appears left-aligned in slate
+- [ ] Three-dot typing indicator shows while the request is in flight
+- [ ] Send button and textarea are disabled while sending
+- [ ] After response: message list auto-scrolls to the latest message
+- [ ] If API fails: red inline error message appears below the last message
+- [ ] Clicking the trash icon clears the conversation (also removes from localStorage)
+- [ ] Clicking × (or clicking "Ask Stratos AI" again) closes the panel with a fade/slide transition
+- [ ] Refresh the page — previous conversation reloads from localStorage
+- [ ] In **dark mode**: panel uses `slate-900` background, `slate-800` surfaces, correct text colours throughout
+
+**TypeScript:**
+```bash
+npx tsc --noEmit   # must exit 0 with no output
+```
+
+---
+
+## Step 15 — Dashboard Footer Bar & Chat Panel Polish Pass
+
+### What was done
+
+A targeted visual-interaction polish pass over the dashboard footer bar and Stratos AI chat panel. No business logic, API contracts, or authentication behaviour was changed.
+
+---
+
+### A — Footer bar: opposite-theme "control dock"
+
+**Before:** `h-10`, same surface as app shell (`bg-white dark:bg-slate-950`).
+
+**After:** `h-14`, inverted-theme surface — dark in light mode, light in dark mode.
+
+| Mode | Background | Border |
+|---|---|---|
+| Light (default) | `bg-slate-900` | `border-slate-700` |
+| Dark | `dark:bg-slate-100` | `dark:border-slate-300` |
+
+This makes the footer read as a distinct "control dock" with strong visual separation from the main dashboard canvas, and vertically matches the weight of the sidebar user-account panel (which is also ~56 px tall with `py-3` padding).
+
+**How the opposite-theme is implemented:**
+Tailwind dark-mode variant is class-based (`.dark` on `<html>`). The footer simply swaps its surface tokens:
+- `bg-slate-900` is the base (dark dock) — active in light mode where `.dark` is absent.
+- `dark:bg-slate-100` overrides it to a light dock — active in dark mode where `.dark` is present.
+No JavaScript, no theme listener, no inline style — purely two Tailwind classes.
+
+**`AiStatusIndicator` — `inverted` prop added:**
+The status text classes are adjusted for the reversed surface so WCAG AA contrast is met in both modes:
+
+| Surface | Normal text class | Inverted text class |
+|---|---|---|
+| Light mode (dark footer) | `text-slate-500` (5.5:1 on white) | `text-slate-300` (9:1 on `slate-900`) |
+| Dark mode (light footer) | `dark:text-slate-400` (6.5:1 on `slate-950`) | `dark:text-slate-600` (7.5:1 on `slate-100`) |
+
+The separator and loading-dot colours are similarly swapped.
+
+---
+
+### B — Chat launcher button: always blue
+
+**Before:** conditional — blue when open, slate when closed (dark mode adaptive).
+
+**After:** `bg-blue-600 text-white hover:bg-blue-700` always, in both light and dark mode.
+
+This makes it a stable branded primary CTA that reads clearly on both the dark footer (light mode) and the light footer (dark mode) without any theme-dependent logic. The `isOpen` state no longer changes the button style.
+
+---
+
+### C — Backdrop blur overlay when chat is open
+
+A `fixed inset-0 z-40` `<div>` was added to `AppShell` between the page content and the chat panel (`z-50`):
+
+```
+bg-slate-900/20 backdrop-blur-[2px]
+transition-opacity duration-300
+pointer-events-none  ← never blocks dashboard interaction
+```
+
+- `opacity-100` when `chat.isOpen`, `opacity-0` otherwise — smooth 300ms CSS fade.
+- `pointer-events-none` always: the dashboard remains interactive while the panel is open; clicking the overlay does **not** close the chat (preserving the existing UX contract).
+- The blur is intentionally subtle (`2px`) — enough to create depth without making data illegible.
+
+---
+
+### D — Expand / collapse chat panel
+
+**State:** `isExpanded: boolean` is held inside `ChatPanel` via `useState`. It starts as `false` and persists across open/close cycles (intentional — user's panel size preference is remembered for the session).
+
+**Normal → Expanded dimensions:**
+
+| Dimension | Normal | Expanded |
+|---|---|---|
+| Width | `w-[420px]` | `w-[680px]` |
+| Max width | `max-w-[calc(100vw-2rem)]` | `max-w-[calc(100vw-2rem)]` |
+| Height | `min(600px, calc(100vh-80px))` | `min(760px, calc(100vh-80px))` |
+
+`min()` ensures the panel never overflows the viewport vertically, and `max-w-[calc(100vw-2rem)]` prevents horizontal overflow on narrow screens.
+
+**Expand icon:** placed in `ChatHeader` to the **left** of the trash/clear icon, right side of the header action group:
+
+```
+[ ExpandIcon ] [ TrashIcon? ] [ XIcon ]
+```
+
+- `ExpandIcon` — outward-pointing corner arrows (SVG).
+- `CollapseIcon` — inward-pointing corner arrows (SVG).
+- `aria-label` switches between "Expand chat panel" and "Collapse chat panel".
+- Always visible (not conditional on message count).
+
+**Transition:** `transition-all duration-300 ease-out` on the panel `<div>` — Tailwind applies this to both `width` and `height` changes, producing a smooth resize animation.
+
+**Footer offset:** Chat panel repositioned from `bottom-12` (48 px) to `bottom-14` (56 px) to sit flush above the taller `h-14` footer.
+
+---
+
+### E — Preserved functionality
+
+All of the following remain unchanged:
+- `GET /api/ai-status` polling (30-second interval, `AiStatusIndicator`)
+- `POST /api/chat` message send with Clerk Bearer token
+- `localStorage` persistence keyed by Clerk `userId`
+- Open / close, send / typing indicator / clear / close behaviours
+- Dark / light theme support across all chat components
+
+---
+
+### Files modified
+
+| File | Change |
+|---|---|
+| `src/components/chat/AiStatusIndicator.tsx` | Added `inverted?: boolean` prop; text, separator, and dot colours adapt for reversed surface |
+| `src/components/chat/DashboardFooterBar.tsx` | `h-10` → `h-14`; `bg-white dark:bg-slate-950` → `bg-slate-900 dark:bg-slate-100`; border tokens inverted; passes `inverted` to `AiStatusIndicator` |
+| `src/components/chat/ChatLauncher.tsx` | Always `bg-blue-600 text-white hover:bg-blue-700`; removed theme-conditional styling |
+| `src/components/chat/ChatHeader.tsx` | Added `isExpanded` + `onExpand` props; `ExpandIcon` / `CollapseIcon` SVGs; button placed left of trash icon; shared `iconBtnClass` constant |
+| `src/components/chat/ChatPanel.tsx` | `useState(isExpanded)`; `handleToggleExpand`; dynamic `widthClass` + `panelHeight`; repositioned from `bottom-12` → `bottom-14`; `transition-all duration-300`; passes `isExpanded`/`onExpand` to `ChatHeader` |
+| `src/app/AppShell.tsx` | Backdrop blur overlay (`fixed inset-0 z-40`, `pointer-events-none`, fade transition) added between content and `ChatPanel` |
+
+### Files created
+
+None.
+
+---
+
+### How to verify
+
+#### Footer
+
+1. `cd frontend && npm run dev` → open `/dashboard`
+2. **Light mode** — footer should be visibly **dark** (`slate-900` navy/near-black) with a `slate-700` top border. It should contrast sharply against the light main canvas.
+3. **Dark mode** (toggle theme) — footer should be visibly **light** (`slate-100` off-white) with a `slate-300` top border. It should contrast sharply against the dark main canvas.
+4. In both modes, footer height should visually match the sidebar user-account panel height (~56 px).
+5. Left section: AI status dot + label readable in both modes (check contrast manually).
+6. Center: copyright text readable in both modes.
+
+#### Chat launcher button
+
+7. In **light mode**: "Ask Stratos AI" button is **solid blue** (`bg-blue-600`). Hover makes it slightly darker (`bg-blue-700`).
+8. In **dark mode**: button remains **solid blue** (not inverted or transparent). Hover behaviour identical.
+9. Open the panel → button stays blue (no mode change on open).
+
+#### Backdrop blur overlay
+
+10. Click "Ask Stratos AI" — a subtle blur/dim overlay should appear over the dashboard canvas behind the chat panel, fading in smoothly (~300ms).
+11. Close the panel — overlay fades out.
+12. While overlay is visible, click on a KPI card or dashboard element — it should remain interactive (pointer-events-none).
+
+#### Expand / collapse
+
+13. Open the chat panel — in the header, an expand icon (four outward-corner arrows) appears to the **left of the trash icon** (when messages exist) or left of the close button (when empty).
+14. Click the expand icon — panel widens to ~680 px and grows taller; transition is smooth (~300ms).
+15. Click again — panel returns to normal size (~420 px, 600 px max height); smooth transition.
+16. Test on a laptop screen (≤1280 px): panel should not overflow viewport horizontally or vertically in either state.
+17. In expanded mode, header stays pinned, messages scroll, composer stays pinned at bottom.
+18. Close panel, reopen → expanded state persists for the session.
+
+#### TypeScript
+
+```bash
+npx tsc --noEmit   # must exit 0 with zero output
+```
