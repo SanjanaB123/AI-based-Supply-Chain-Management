@@ -1,4 +1,3 @@
-import { AiStatusIndicator } from './AiStatusIndicator';
 import { ChatLauncher } from './ChatLauncher';
 
 interface DashboardFooterBarProps {
