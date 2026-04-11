@@ -11,6 +11,9 @@ design-references
 node_modules
 dist
 dist-ssr
+.env
+.env.local
+.env.*.local
 *.local
 
 # Editor directories and files

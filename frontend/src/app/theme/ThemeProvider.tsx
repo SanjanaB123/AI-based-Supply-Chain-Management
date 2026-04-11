@@ -11,6 +11,7 @@ interface ThemeContextValue {
 
 // ── Context ───────────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const ThemeContext = createContext<ThemeContextValue>({
   theme: 'light',
   toggleTheme: () => {},

@@ -2343,3 +2343,98 @@ None.
 ```bash
 npx tsc --noEmit   # must exit 0 with zero output
 ```
+
+---
+
+## CI/CD — Step 1
+
+### CI requirements
+
+The frontend requires these environment variables at **build time**:
+
+| Variable | Purpose |
+|---|---|
+| `VITE_CLERK_PUBLISHABLE_KEY` | Clerk authentication publishable key |
+| `VITE_API_BASE_URL` | Base URL for backend API requests |
+
+Both are validated at startup in `src/lib/config.ts` — the build will throw if either is absent.
+
+In GitHub Actions, provide them via **GitHub Secrets** or **Repository Variables** and inject with:
+
+```yaml
+env:
+  VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+  VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+```
+
+### Local validation
+
+```bash
+npm install --include=dev
+npm run typecheck
+npm run build
+npm run lint
+```
+
+All four commands must exit 0 before opening a PR.
+
+---
+
+## CI/CD — Step 2: Frontend CI Workflow
+
+### Workflow file
+
+`.github/workflows/frontend-ci.yml` (at repo root — **not** inside `frontend/`)
+
+### Triggers
+
+| Event | Branch |
+|---|---|
+| `push` | `aryan` |
+| `pull_request` (target) | `main` |
+
+### Job matrix
+
+| Runner | Node version |
+|---|---|
+| `ubuntu-latest` | `20` |
+
+### Steps (in order)
+
+| Step | Command / Action |
+|---|---|
+| Checkout | `actions/checkout@v4` |
+| Set up Node | `actions/setup-node@v4` with `cache: npm` |
+| Install deps | `npm install --include=dev` |
+| Typecheck | `npm run typecheck` |
+| Lint | `npm run lint` |
+| Build | `npm run build` |
+
+> `--include=dev` is required because `vite`, `typescript`, and the ESLint stack are all `devDependencies`. Without it, `npm ci` / `npm install` in a CI environment that strips dev deps will cause the build to fail.
+
+### Required GitHub Secrets / Variables
+
+Configure these in **Settings → Secrets and variables → Actions** on the repository.
+
+| Name | Kind | Description |
+|---|---|---|
+| `VITE_CLERK_PUBLISHABLE_KEY` | **Secret** | Clerk publishable key (`pk_test_…` or `pk_live_…`). Treated as a secret because it identifies your Clerk application. |
+| `VITE_API_BASE_URL` | **Variable** | Base URL for the backend API (e.g. `https://api.example.com`). Not sensitive — stored as a repo variable for easy updates. |
+
+Both are injected at the **job level** so they are available to all steps (typecheck, lint, and build):
+
+```yaml
+env:
+  VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+  VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+```
+
+### Local pre-push checklist
+
+```bash
+cd frontend
+npm install --include=dev
+npm run typecheck   # must exit 0
+npm run lint        # must exit 0
+npm run build       # must exit 0
+```

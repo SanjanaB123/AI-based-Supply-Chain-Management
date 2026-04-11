@@ -34,6 +34,7 @@ export function TopBarProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTopBar() {
   const ctx = useContext(TopBarContext);
   if (!ctx) throw new Error('useTopBar must be used within TopBarProvider');
