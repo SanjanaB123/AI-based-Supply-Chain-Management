@@ -3,7 +3,7 @@ name: Frontend CI
 on:
   push:
     branches:
-      - aryan
+      - aryan-frontend
   pull_request:
     branches:
       - main

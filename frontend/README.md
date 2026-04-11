@@ -1633,7 +1633,7 @@ Cards with initials avatar (colored bg), name, and role tag:
 | Somya Padhy | Backend · Deployment | amber |
 | Ghanashyam | Documentation | slate |
 
-(Aryan Mehta intentionally omitted per project instructions.)
+(Aryan Mehta intentionally omitted per project instructions. Added later.)
 
 ---
 
@@ -2390,7 +2390,7 @@ All four commands must exit 0 before opening a PR.
 
 | Event | Branch |
 |---|---|
-| `push` | `aryan` |
+| `push` | `aryan-frontend` |
 | `pull_request` (target) | `main` |
 
 ### Job matrix
