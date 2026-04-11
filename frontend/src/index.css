@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+/* Enable class-based dark mode — applies when .dark is on <html> or any ancestor */
+@variant dark (&:where(.dark, .dark *));
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}

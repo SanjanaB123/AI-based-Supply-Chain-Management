@@ -1,6 +1,5 @@
 [core]
     no_scm = True
     remote = storage
-['remote "storage"']
+[remote "storage"]
     url = gs://supply-chain-pipeline/dvc
-    credentialpath = C:\Users\vedas\AppData\Roaming\gcloud\application_default_credentials.json
