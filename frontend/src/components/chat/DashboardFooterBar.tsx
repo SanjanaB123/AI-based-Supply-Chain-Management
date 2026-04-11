@@ -20,10 +20,8 @@ interface DashboardFooterBarProps {
 export function DashboardFooterBar({ isOpen, onToggle }: DashboardFooterBarProps) {
   return (
     <footer className="flex h-14 shrink-0 items-center border-t border-slate-700 bg-slate-900 px-5 dark:border-slate-300 dark:bg-slate-100">
-      {/* Left: AI connection status */}
-      <div className="flex flex-1 items-center">
-        <AiStatusIndicator inverted />
-      </div>
+      {/* Left spacer */}
+      <div className="flex flex-1 items-center" />
 
       {/* Center: copyright */}
       <div className="flex flex-1 items-center justify-center">

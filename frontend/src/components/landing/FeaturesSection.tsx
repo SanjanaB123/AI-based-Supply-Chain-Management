@@ -211,7 +211,7 @@ export default function FeaturesSection() {
     <section
       ref={sectionRef}
       id="features"
-      className="bg-white dark:bg-slate-950 py-24 md:py-32"
+      className="bg-white dark:bg-slate-950 py-14 md:py-20"
     >
       <div className="mx-auto max-w-480 px-6 lg:px-10">
 

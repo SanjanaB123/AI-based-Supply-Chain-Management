@@ -1,3 +1,5 @@
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { ChatMessage } from '../../types/chat';
 
 interface ChatMessageBubbleProps {
@@ -19,8 +21,21 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
 
   return (
     <div className="flex justify-start">
-      <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-slate-100 dark:bg-slate-800 px-3.5 py-2.5 text-[13px] leading-relaxed text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
-        {message.content}
+      <div className="min-w-0 max-w-[85%] overflow-hidden rounded-2xl rounded-bl-sm bg-slate-100 px-3.5 py-2.5 text-[13px] leading-relaxed text-slate-800">
+        <div className="ai-markdown">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              table: ({ children, ...props }) => (
+                <div className="table-wrap">
+                  <table {...props}>{children}</table>
+                </div>
+              ),
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
+        </div>
       </div>
     </div>
   );

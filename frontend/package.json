@@ -13,11 +13,14 @@
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.61.4",
+    "@tailwindcss/typography": "^0.5.19",
     "gsap": "^3.14.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.14.0",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

@@ -15,7 +15,6 @@ export default function HomePage() {
         <FeaturesSection />
         <MetricsSection />
         <WorkflowSection />
-        <TeamSection />
       </main>
       <LandingFooter />
     </div>

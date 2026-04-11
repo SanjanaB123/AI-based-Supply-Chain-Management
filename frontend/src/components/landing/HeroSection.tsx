@@ -46,10 +46,10 @@ interface SidebarItemData {
 
 const SIDEBAR_ITEMS: SidebarItemData[] = [
   { label: 'Dashboard',    active: true,  soon: false },
-  { label: 'Analytics',   active: false, soon: true  },
-  { label: 'Inventory',   active: false, soon: true  },
-  { label: 'Risk',        active: false, soon: true  },
-  { label: 'AI Assistant', active: false, soon: true },
+  { label: 'Analytics',   active: false, soon: false },
+  { label: 'Inventory',   active: false, soon: false },
+  { label: 'Risk',        active: false, soon: false },
+  { label: 'AI Assistant', active: false, soon: false },
 ];
 
 interface TableRowData {
@@ -394,21 +394,10 @@ export default function HeroSection() {
             )}
           </div>
 
-          {/* Trust strip */}
-          <div
-            ref={trustRef}
-            className="mt-5 flex flex-wrap items-center justify-center gap-5 text-[12px] text-slate-400 dark:text-slate-500"
-          >
-            <span>No credit card required</span>
-            <span className="hidden sm:block h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-            <span>14-day free trial</span>
-            <span className="hidden sm:block h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-            <span>Cancel anytime</span>
-          </div>
         </div>
 
         {/* ── Dashboard preview ────────────────────────────────────────────── */}
-        <div ref={previewRef} className="pb-20 md:pb-28">
+        <div ref={previewRef} className="pb-10 md:pb-14">
           <DashboardPreview />
         </div>
       </div>

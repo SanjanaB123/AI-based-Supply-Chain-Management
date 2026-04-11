@@ -1,6 +1,5 @@
 import os
 import logging
-from typing import Optional
 
 import jwt
 from jwt import PyJWKClient
@@ -17,7 +16,7 @@ _DEV_BYPASS = os.getenv("DEV_BYPASS", "false").lower() == "true"
 
 # Lazily initialised — created on first request so that load_dotenv() in
 # main.py has already run before we read the env var.
-_jwks_client: Optional[PyJWKClient] = None
+_jwks_client: PyJWKClient | None = None
 
 security = HTTPBearer(auto_error=not _DEV_BYPASS)
 
@@ -36,7 +35,7 @@ def _get_jwks_client() -> PyJWKClient:
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> ClerkUser:
     """
     Verify a Clerk-issued JWT from the Authorization header.
@@ -44,7 +43,7 @@ async def get_current_user(
     """
     if _DEV_BYPASS:
         log.warning("DEV_BYPASS enabled — skipping Clerk token verification")
-        return ClerkUser(user_id="dev-user", email=os.getenv("SUPPORT_EMAIL", "dev@local.test"))
+        return ClerkUser(user_id="dev-user", email="dev@local.test")
 
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")

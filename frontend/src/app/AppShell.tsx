@@ -1,6 +1,7 @@
 import { UserButton, useUser } from '@clerk/clerk-react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { TopBarProvider, useTopBar } from './TopBarContext';
+import { InventoryDataProvider } from '../hooks/InventoryDataContext';
 import { useTheme } from './theme/useTheme';
 import { useChatAssistant } from '../hooks/useChatAssistant';
 import { DashboardFooterBar } from '../components/chat/DashboardFooterBar';
@@ -170,24 +171,22 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Analytics',
     items: [
-      { label: 'Analytics',  path: '/analytics', icon: <BarChartIcon />, soon: true },
-      { label: 'Inventory',  path: '/inventory', icon: <BoxIcon />,      soon: true },
-      { label: 'Risk',       path: '/risk',       icon: <RiskIcon />,    soon: true },
-      { label: 'Variance',   path: '/variance',   icon: <VarianceIcon />, soon: true },
+      { label: 'Analytics',  path: '/analytics', icon: <BarChartIcon /> },
+      { label: 'Inventory',  path: '/inventory', icon: <BoxIcon /> },
+      { label: 'Risk',       path: '/risk',       icon: <RiskIcon /> },
+      { label: 'Variance',   path: '/variance',   icon: <VarianceIcon /> },
     ],
   },
   {
     label: 'Intelligence',
     items: [
-      { label: 'AI Assistant', path: '/ai', icon: <SparkleIcon />, soon: true },
+      { label: 'AI Assistant', path: '/ai', icon: <SparkleIcon /> },
     ],
   },
   {
     label: 'Help & Support',
     items: [
-      { label: 'User Guide',       path: '/guide',   icon: <BookIcon />,       soon: true },
-      { label: 'FAQs',             path: '/faqs',    icon: <HelpCircleIcon />, soon: true },
-      { label: 'Contact Support',  path: '/support', icon: <HeadsetIcon />,    soon: true },
+      { label: 'Contact Support',  path: '/support', icon: <HeadsetIcon /> },
     ],
   },
 ];
@@ -282,26 +281,8 @@ function AppShellInner() {
         {/* Bottom: Settings + theme toggle + user account */}
         <div className="shrink-0 border-t border-slate-200 dark:border-slate-800">
           <div className="px-3 pt-2 pb-1">
-            <NavLink
-              item={{ label: 'Settings', path: '/settings', icon: <GearIcon />, soon: true }}
-              active={false}
-            />
           </div>
 
-          {/* Theme toggle row */}
-          <div className="flex items-center justify-between px-4 py-2">
-            <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 select-none">
-              Appearance
-            </span>
-            <button
-              onClick={toggleTheme}
-              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-medium text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-              <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
-            </button>
-          </div>
 
           <div className="flex items-center gap-3 border-t border-slate-200 dark:border-slate-800 px-4 py-3">
             <UserButton />
@@ -348,43 +329,8 @@ function AppShellInner() {
           {/* Push utility actions to the right */}
           <div className="flex-1" />
 
-          {/* Search bar */}
-          <div className="relative hidden lg:flex items-center">
-            <span className="pointer-events-none absolute left-2.5 text-slate-400 dark:text-slate-500">
-              <SearchIcon />
-            </span>
-            <input
-              type="text"
-              placeholder="Search products, stores…"
-              className="h-8 w-48 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 pl-8 pr-3 text-[12px] text-slate-700 dark:text-slate-300 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all focus:border-blue-300 dark:focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 xl:w-60"
-              readOnly
-            />
-          </div>
-
-          {/* Notification + inbox + theme toggle + user */}
+          {/* User */}
           <div className="flex items-center gap-0.5">
-            <button
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-              aria-label="Notifications"
-            >
-              <BellIcon />
-            </button>
-            <button
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-              aria-label="Inbox"
-            >
-              <InboxIcon />
-            </button>
-            <div className="mx-1.5 h-5 w-px bg-slate-200 dark:bg-slate-700" />
-            {/* Theme toggle */}
-            <button
-              onClick={toggleTheme}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-            </button>
-            <div className="mx-1.5 h-5 w-px bg-slate-200 dark:bg-slate-700" />
             <UserButton />
           </div>
         </header>
@@ -399,48 +345,45 @@ function AppShellInner() {
             />
           </Link>
           <div className="flex items-center gap-2">
-            <button
-              onClick={toggleTheme}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-            </button>
             <UserButton />
           </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900 px-6 py-7 lg:px-10 lg:py-8">
+        <main className={`flex-1 bg-slate-50 dark:bg-slate-900 ${
+          location.pathname === '/ai'
+            ? 'overflow-hidden p-0'
+            : 'overflow-auto px-6 py-7 lg:px-10 lg:py-8'
+        }`}>
           <Outlet />
         </main>
 
-        {/* Footer bar */}
-        <DashboardFooterBar isOpen={chat.isOpen} onToggle={chat.toggle} />
+        {/* Footer bar — hidden on /ai page */}
+        {location.pathname !== '/ai' && (
+          <DashboardFooterBar isOpen={chat.isOpen} onToggle={chat.toggle} />
+        )}
       </div>
 
-      {/*
-        Backdrop blur overlay — purely visual, pointer-events-none so the
-        dashboard canvas stays interactive. Fades in/out with the chat panel.
-        z-40 sits below the chat panel (z-50) but above all page content.
-      */}
-      <div
-        aria-hidden="true"
-        className={`fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[2px] pointer-events-none transition-opacity duration-300 ${
-          chat.isOpen ? 'opacity-100' : 'opacity-0'
-        }`}
-      />
-
-      {/* Floating AI assistant panel (fixed, above footer) */}
-      <ChatPanel
-        isOpen={chat.isOpen}
-        messages={chat.messages}
-        isSending={chat.isSending}
-        error={chat.error}
-        onClose={chat.close}
-        onClear={chat.clearChat}
-        onSend={chat.sendMessage}
-      />
+      {/* Backdrop + floating chat panel — hidden on /ai page */}
+      {location.pathname !== '/ai' && (
+        <>
+          <div
+            aria-hidden="true"
+            className={`fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[2px] pointer-events-none transition-opacity duration-300 ${
+              chat.isOpen ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+          <ChatPanel
+            isOpen={chat.isOpen}
+            messages={chat.messages}
+            isSending={chat.isSending}
+            error={chat.error}
+            onClose={chat.close}
+            onClear={chat.clearChat}
+            onSend={chat.sendMessage}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -450,7 +393,9 @@ function AppShellInner() {
 export default function AppShell() {
   return (
     <TopBarProvider>
-      <AppShellInner />
+      <InventoryDataProvider>
+        <AppShellInner />
+      </InventoryDataProvider>
     </TopBarProvider>
   );
 }

@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 
 # Load .env from root directory BEFORE any other imports that read env vars at module level
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'), override=True)
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 import logging
 from contextlib import asynccontextmanager
@@ -14,21 +14,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from routes_inventory import router as inventory_router
-from routes_gemini_chat import router as gemini_chat_router
-from routes_email import router as email_router
-
-# routes_chat requires heavy ML deps (setfit, langchain, etc.)
-# Gracefully skip if not installed (e.g. local dev without full ML stack)
-try:
-    from routes_chat import router as chat_router, init_ai
-    _chat_available = True
-except ImportError as _e:
-    logging.getLogger(__name__).warning(f"Claude chat unavailable (missing deps): {_e}")
-    chat_router = None  # type: ignore
-    _chat_available = False
-
-    async def init_ai():
-        pass
+from routes_chat import router as chat_router, init_ai
 
 log = logging.getLogger(__name__)
 
@@ -67,22 +53,16 @@ app.add_middleware(
 
 # Mount routers
 app.include_router(inventory_router)
-if chat_router is not None:
-    app.include_router(chat_router)
-app.include_router(gemini_chat_router)
-app.include_router(email_router)
+app.include_router(chat_router)
 
 
 @app.get("/health")
 def health():
     """Top-level health check for Cloud Run / load balancers."""
-    ai_enabled = False
-    if _chat_available:
-        from routes_chat import graph
-        ai_enabled = graph is not None
+    from routes_chat import graph
     return {
         "status": "ok",
-        "ai_enabled": ai_enabled,
+        "ai_enabled": graph is not None,
     }
 
 

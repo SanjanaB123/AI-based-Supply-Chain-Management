@@ -7,6 +7,12 @@ import HomePage from '../pages/HomePage';
 import SignInPage from '../pages/SignInPage';
 import SignUpPage from '../pages/SignUpPage';
 import DashboardPage from '../pages/DashboardPage';
+import AnalyticsPage from '../pages/AnalyticsPage';
+import InventoryPage from '../pages/InventoryPage';
+import RiskPage from '../pages/RiskPage';
+import VariancePage from '../pages/VariancePage';
+import AiAssistantPage from '../pages/AiAssistantPage';
+import ContactSupportPage from '../pages/ContactSupportPage';
 
 export default function AppRouter() {
   return (
@@ -27,6 +33,12 @@ export default function AppRouter() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/risk" element={<RiskPage />} />
+            <Route path="/variance" element={<VariancePage />} />
+            <Route path="/ai" element={<AiAssistantPage />} />
+            <Route path="/support" element={<ContactSupportPage />} />
           </Route>
         </Route>
       </Routes>

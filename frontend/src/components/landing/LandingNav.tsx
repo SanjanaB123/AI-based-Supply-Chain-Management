@@ -42,7 +42,6 @@ function MoonIcon() {
 const NAV_LINKS = [
   { label: 'Platform',     href: '#features'  },
   { label: 'How it works', href: '#workflow'  },
-  { label: 'Team',         href: '#team'      },
 ] as const;
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -107,17 +106,8 @@ export default function LandingNav() {
           ))}
         </div>
 
-        {/* ── Right: theme toggle + auth-aware CTAs ─────────────────────────── */}
+        {/* ── Right: auth-aware CTAs ──────────────────────────────────────── */}
         <div className="flex items-center gap-2">
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-          </button>
-
           {!isLoaded ? (
             <div className="h-8 w-28 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
           ) : isSignedIn ? (
