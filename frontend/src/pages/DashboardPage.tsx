@@ -53,16 +53,16 @@ function SmallPanelSkeleton() {
   return (
     <div className="animate-pulse space-y-3">
       <div className="flex items-center gap-2">
-        <div className="h-1.5 w-1.5 rounded-full bg-slate-100" />
-        <div className="h-2.5 w-24 rounded-full bg-slate-100" />
+        <div className="h-1.5 w-1.5 rounded-full bg-slate-100 dark:bg-slate-700" />
+        <div className="h-2.5 w-24 rounded-full bg-slate-100 dark:bg-slate-700" />
       </div>
       {[0, 1, 2, 3, 4].map(i => (
-        <div key={i} className="flex items-center justify-between rounded-lg border border-slate-50 px-3 py-2.5">
+        <div key={i} className="flex items-center justify-between rounded-lg border border-slate-50 dark:border-slate-800 px-3 py-2.5">
           <div className="space-y-1.5">
-            <div className="h-3 w-28 rounded-full bg-slate-100" />
-            <div className="h-2 w-16 rounded-full bg-slate-100" />
+            <div className="h-3 w-28 rounded-full bg-slate-100 dark:bg-slate-700" />
+            <div className="h-2 w-16 rounded-full bg-slate-100 dark:bg-slate-700" />
           </div>
-          <div className="h-3 w-10 rounded-full bg-slate-100" />
+          <div className="h-3 w-10 rounded-full bg-slate-100 dark:bg-slate-700" />
         </div>
       ))}
     </div>
@@ -75,18 +75,18 @@ function CategorySkeleton() {
       <div className="flex gap-4">
         {[0, 1, 2].map(i => (
           <div key={i} className="flex items-center gap-1.5">
-            <div className="h-2 w-2 rounded-full bg-slate-100" />
-            <div className="h-2 w-10 rounded-full bg-slate-100" />
+            <div className="h-2 w-2 rounded-full bg-slate-100 dark:bg-slate-700" />
+            <div className="h-2 w-10 rounded-full bg-slate-100 dark:bg-slate-700" />
           </div>
         ))}
       </div>
       {[0, 1, 2, 3].map(i => (
         <div key={i} className="space-y-1.5">
           <div className="flex justify-between">
-            <div className="h-3 w-20 rounded-full bg-slate-100" />
-            <div className="h-2.5 w-6 rounded-full bg-slate-100" />
+            <div className="h-3 w-20 rounded-full bg-slate-100 dark:bg-slate-700" />
+            <div className="h-2.5 w-6 rounded-full bg-slate-100 dark:bg-slate-700" />
           </div>
-          <div className="h-2 w-full rounded-full bg-slate-100" />
+          <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-700" />
         </div>
       ))}
     </div>
@@ -97,13 +97,13 @@ function InsightSkeleton() {
   return (
     <div className="animate-pulse space-y-3">
       {[0, 1, 2, 3].map(i => (
-        <div key={i} className="rounded-xl border border-slate-100 px-4 py-3.5 space-y-1.5">
+        <div key={i} className="rounded-xl border border-slate-100 dark:border-slate-800 px-4 py-3.5 space-y-1.5">
           <div className="flex items-center gap-2">
-            <div className="h-1.5 w-1.5 rounded-full bg-slate-100" />
-            <div className="h-2 w-20 rounded-full bg-slate-100" />
+            <div className="h-1.5 w-1.5 rounded-full bg-slate-100 dark:bg-slate-700" />
+            <div className="h-2 w-20 rounded-full bg-slate-100 dark:bg-slate-700" />
           </div>
-          <div className="h-3.5 w-32 rounded-full bg-slate-100" />
-          <div className="h-2.5 w-44 rounded-full bg-slate-100" />
+          <div className="h-3.5 w-32 rounded-full bg-slate-100 dark:bg-slate-700" />
+          <div className="h-2.5 w-44 rounded-full bg-slate-100 dark:bg-slate-700" />
         </div>
       ))}
     </div>
@@ -124,7 +124,7 @@ function AlertIcon() {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400 xl:text-[11px]">
+    <h2 className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 xl:text-[11px]">
       {children}
     </h2>
   );
@@ -132,7 +132,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function ModuleCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm ${className}`}>
+    <div className={`rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 p-5 shadow-sm ${className}`}>
       {children}
     </div>
   );
@@ -191,7 +191,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (storesLoading) {
       setTopBarSlot(
-        <div className="h-9 w-40 animate-pulse rounded-lg bg-slate-200" />,
+        <div className="h-9 w-40 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />,
       );
     } else if (stores.length > 0) {
       setTopBarSlot(
@@ -298,7 +298,7 @@ export default function DashboardPage() {
       {/* ── Mobile-only store selector ──────────────────────────────────────── */}
       <div className="md:hidden">
         {storesLoading ? (
-          <div className="h-9 w-40 animate-pulse rounded-lg bg-slate-200" />
+          <div className="h-9 w-40 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
         ) : !storesError && stores.length > 0 ? (
           <StoreSelector stores={stores} selected={selectedStore} onChange={handleStoreChange} />
         ) : null}
@@ -306,13 +306,13 @@ export default function DashboardPage() {
 
       {/* ── Error banners ───────────────────────────────────────────────────── */}
       {storesError && (
-        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-100 px-4 py-3.5 text-sm text-red-600">
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-100 dark:bg-red-900/20 px-4 py-3.5 text-sm text-red-600 dark:text-red-400">
           <AlertIcon />
           {storesError}
         </div>
       )}
       {dataError && !dataLoading && (
-        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-100 px-4 py-3.5 text-sm text-red-600">
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-100 dark:bg-red-900/20 px-4 py-3.5 text-sm text-red-600 dark:text-red-400">
           <AlertIcon />
           {dataError}
         </div>
@@ -368,21 +368,21 @@ export default function DashboardPage() {
             <div className="animate-pulse space-y-4">
               <div className="flex items-start justify-between">
                 <div className="space-y-1.5">
-                  <div className="h-3.5 w-44 rounded-full bg-slate-100" />
-                  <div className="h-2.5 w-64 rounded-full bg-slate-100" />
+                  <div className="h-3.5 w-44 rounded-full bg-slate-100 dark:bg-slate-700" />
+                  <div className="h-2.5 w-64 rounded-full bg-slate-100 dark:bg-slate-700" />
                 </div>
                 <div className="flex gap-1">
                   {[0,1,2,3,4].map(i => (
-                    <div key={i} className="h-7 w-20 rounded-md bg-slate-100" />
+                    <div key={i} className="h-7 w-20 rounded-md bg-slate-100 dark:bg-slate-700" />
                   ))}
                 </div>
               </div>
-              <div className="h-56 rounded-lg bg-slate-100" />
-              <div className="flex gap-4 border-t border-slate-100 pt-3">
+              <div className="h-56 rounded-lg bg-slate-100 dark:bg-slate-700" />
+              <div className="flex gap-4 border-t border-slate-100 dark:border-slate-700 pt-3">
                 {[0,1,2].map(i => (
                   <div key={i} className="flex items-center gap-1.5">
-                    <div className="h-2 w-2 rounded-full bg-slate-100" />
-                    <div className="h-2.5 w-14 rounded-full bg-slate-100" />
+                    <div className="h-2 w-2 rounded-full bg-slate-100 dark:bg-slate-700" />
+                    <div className="h-2.5 w-14 rounded-full bg-slate-100 dark:bg-slate-700" />
                   </div>
                 ))}
               </div>
@@ -412,9 +412,9 @@ export default function DashboardPage() {
           {/* Analytics panel */}
           <div className="xl:col-span-2">
             <SectionLabel>Analytics</SectionLabel>
-            <div className="rounded-xl border border-slate-200/80 bg-white shadow-sm">
-              {/* Tab bar — premium pill style */}
-              <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-100 bg-slate-50/60 px-3 py-2 rounded-t-xl">
+            <div className="rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 shadow-sm">
+              {/* Tab bar */}
+              <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/60 px-3 py-2 rounded-t-xl">
                 {ANALYTICS_TABS.map(tab => (
                   <button
                     key={tab.id}
@@ -422,7 +422,7 @@ export default function DashboardPage() {
                     className={`shrink-0 rounded-lg px-3.5 py-1.5 text-[12px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                       activeTab === tab.id
                         ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-slate-500 hover:bg-slate-200/70 hover:text-slate-800'
+                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/70 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
                     {tab.label}
@@ -528,7 +528,7 @@ export default function DashboardPage() {
 
 function EmptyModule() {
   return (
-    <div className="flex items-center justify-center py-10 text-sm text-slate-400">
+    <div className="flex items-center justify-center py-10 text-sm text-slate-400 dark:text-slate-500">
       Select a store to view data.
     </div>
   );

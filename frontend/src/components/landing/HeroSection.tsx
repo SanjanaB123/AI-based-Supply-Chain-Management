@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { gsap } from 'gsap';
+import { useTheme } from '../../app/theme/useTheme';
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 
@@ -65,9 +66,16 @@ const TABLE_ROWS: TableRowData[] = [
   { sku: 'SKU-5503-B', stock: '42',    forecast: '−9%', status: 'Critical', statusColor: 'text-red-400'     },
 ];
 
-// ── Dashboard preview ─────────────────────────────────────────────────────────
+// ── Dashboard preview — intentionally dark in both themes ────────────────────
 
 function DashboardPreview() {
+  const { theme } = useTheme();
+
+  // Bottom fade adapts to current page background
+  const fadeColor = theme === 'dark'
+    ? 'linear-gradient(to bottom, transparent 0%, rgba(2,6,23,0.92) 100%)'
+    : 'linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.92) 100%)';
+
   return (
     <div className="relative mx-auto w-full max-w-5xl">
 
@@ -107,7 +115,7 @@ function DashboardPreview() {
           <div className="w-14 shrink-0" />
         </div>
 
-        {/* Product UI — stays dark to represent the actual product */}
+        {/* Product UI — intentionally dark to represent the actual product */}
         <div className="flex bg-slate-950" style={{ height: '320px' }}>
 
           {/* Sidebar */}
@@ -248,11 +256,11 @@ function DashboardPreview() {
         </div>
       </div>
 
-      {/* Bottom fade — blends frame edge into white page background */}
+      {/* Bottom fade — blends frame edge into page background */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 bottom-0 h-28 rounded-b-2xl"
-        style={{ background: 'linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.92) 100%)' }}
+        style={{ background: fadeColor }}
       />
     </div>
   );
@@ -294,7 +302,7 @@ export default function HeroSection() {
   }, []);
 
   return (
-    <section className="relative overflow-hidden bg-white pt-16">
+    <section className="relative overflow-hidden bg-white dark:bg-slate-950 pt-16">
 
       {/* Subtle radial hero tint */}
       <div
@@ -325,10 +333,10 @@ export default function HeroSection() {
           {/* Eyebrow badge */}
           <div
             ref={eyebrowRef}
-            className="mb-7 inline-flex items-center gap-2.5 rounded-full border border-blue-200 bg-blue-50 px-4 py-1.5"
+            className="mb-7 inline-flex items-center gap-2.5 rounded-full border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50 px-4 py-1.5"
           >
             <span className="inline-block h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-blue-500" />
-            <span className="text-[12px] font-medium tracking-wide text-blue-700">
+            <span className="text-[12px] font-medium tracking-wide text-blue-700 dark:text-blue-400">
               Supply chain intelligence · Powered by AI
             </span>
           </div>
@@ -336,16 +344,16 @@ export default function HeroSection() {
           {/* Headline */}
           <h1
             ref={headlineRef}
-            className="max-w-4xl text-[48px] font-bold leading-[1.07] tracking-tight text-slate-900 sm:text-[58px] lg:text-[68px] xl:text-[76px]"
+            className="max-w-4xl text-[48px] font-bold leading-[1.07] tracking-tight text-slate-900 dark:text-slate-100 sm:text-[58px] lg:text-[68px] xl:text-[76px]"
           >
             Know every risk<br />
-            <span className="text-blue-600">before it arrives.</span>
+            <span className="text-blue-600 dark:text-blue-400">before it arrives.</span>
           </h1>
 
           {/* Subheadline */}
           <p
             ref={subRef}
-            className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-slate-500"
+            className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-slate-500 dark:text-slate-400"
           >
             Stratos unifies predictive demand forecasting, real-time inventory
             intelligence, and supplier risk monitoring in one confident platform
@@ -358,11 +366,11 @@ export default function HeroSection() {
             className="mt-10 flex flex-wrap items-center justify-center gap-4"
           >
             {!isLoaded ? (
-              <div className="h-12 w-44 animate-pulse rounded-xl bg-slate-100" />
+              <div className="h-12 w-44 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
             ) : isSignedIn ? (
               <Link
                 to="/dashboard"
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-7 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-slate-900/20 transition-all duration-200 hover:bg-slate-800 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-900/25"
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-100 px-7 py-3.5 text-[15px] font-semibold text-white dark:text-slate-900 shadow-lg shadow-slate-900/20 transition-all duration-200 hover:bg-slate-800 dark:hover:bg-slate-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-900/25"
               >
                 Go to Dashboard
                 <ArrowRightIcon />
@@ -371,14 +379,14 @@ export default function HeroSection() {
               <>
                 <Link
                   to="/sign-up"
-                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-7 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-slate-900/20 transition-all duration-200 hover:bg-slate-800 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-900/25"
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-100 px-7 py-3.5 text-[15px] font-semibold text-white dark:text-slate-900 shadow-lg shadow-slate-900/20 transition-all duration-200 hover:bg-slate-800 dark:hover:bg-slate-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-900/25"
                 >
                   Start for free
                   <ArrowRightIcon />
                 </Link>
                 <Link
                   to="/sign-in"
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-7 py-3.5 text-[15px] font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 hover:-translate-y-0.5"
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-7 py-3.5 text-[15px] font-semibold text-slate-700 dark:text-slate-200 shadow-sm transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 hover:-translate-y-0.5"
                 >
                   Sign in
                 </Link>
@@ -389,12 +397,12 @@ export default function HeroSection() {
           {/* Trust strip */}
           <div
             ref={trustRef}
-            className="mt-5 flex flex-wrap items-center justify-center gap-5 text-[12px] text-slate-400"
+            className="mt-5 flex flex-wrap items-center justify-center gap-5 text-[12px] text-slate-400 dark:text-slate-500"
           >
             <span>No credit card required</span>
-            <span className="hidden sm:block h-1 w-1 rounded-full bg-slate-300" />
+            <span className="hidden sm:block h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
             <span>14-day free trial</span>
-            <span className="hidden sm:block h-1 w-1 rounded-full bg-slate-300" />
+            <span className="hidden sm:block h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
             <span>Cancel anytime</span>
           </div>
         </div>

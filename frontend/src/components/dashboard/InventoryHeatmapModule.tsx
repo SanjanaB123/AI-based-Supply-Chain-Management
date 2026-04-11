@@ -37,7 +37,6 @@ const LEGEND_ITEMS: Array<{ bg: string; label: string }> = [
 export default function InventoryHeatmapModule({ data }: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  // Group products by category
   const byCategory = new Map<string, typeof data.products>();
   for (const p of data.products) {
     const arr = byCategory.get(p.category) ?? [];
@@ -45,7 +44,6 @@ export default function InventoryHeatmapModule({ data }: Props) {
     byCategory.set(p.category, arr);
   }
 
-  // Sort categories: most critical items first for visual urgency
   const rows = [...byCategory.entries()].sort(
     (a, b) =>
       b[1].filter(p => p.stock_health === 'critical').length -
@@ -63,23 +61,23 @@ export default function InventoryHeatmapModule({ data }: Props) {
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div className="mb-2.5 flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[12px] font-semibold text-slate-700 leading-tight">
+          <p className="text-[12px] font-semibold text-slate-700 dark:text-slate-200 leading-tight">
             Inventory Health Density
           </p>
-          <p className="mt-0.5 text-[10px] text-slate-400 leading-snug">
+          <p className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500 leading-snug">
             Each cell = one product · color = days of supply remaining
           </p>
         </div>
         <div className="shrink-0 flex flex-col items-end gap-0.5 text-[10px]">
-          <span className="flex items-center gap-1 text-red-500 font-semibold">
+          <span className="flex items-center gap-1 text-red-500 dark:text-red-400 font-semibold">
             <span className="h-1.5 w-1.5 rounded-full bg-red-500 inline-block" />
             {criticalCount} critical
           </span>
-          <span className="flex items-center gap-1 text-amber-500 font-semibold">
+          <span className="flex items-center gap-1 text-amber-500 dark:text-amber-400 font-semibold">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-500 inline-block" />
             {lowCount} low
           </span>
-          <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+          <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
             {healthyCount} healthy
           </span>
@@ -91,17 +89,17 @@ export default function InventoryHeatmapModule({ data }: Props) {
         className={`mb-2 transition-opacity duration-100 ${hovered ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         aria-live="polite"
       >
-        <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5 flex items-center gap-2.5">
+        <div className="rounded-lg border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-3 py-1.5 flex items-center gap-2.5">
           <span
-            className={`h-3 w-3 rounded-[3px] shrink-0 ${hovered ? getCellStyle(hovered.days_of_supply).bg : 'bg-slate-200'}`}
+            className={`h-3 w-3 rounded-[3px] shrink-0 ${hovered ? getCellStyle(hovered.days_of_supply).bg : 'bg-slate-200 dark:bg-slate-600'}`}
           />
-          <span className="text-[11px] font-semibold text-slate-700 truncate">
+          <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 truncate">
             {hovered?.product_id ?? '–'}
           </span>
-          <span className="text-[11px] text-slate-400">
+          <span className="text-[11px] text-slate-400 dark:text-slate-500">
             {hovered ? `${Math.round(hovered.days_of_supply)}d remaining` : ''}
           </span>
-          <span className="text-[10px] text-slate-400 ml-auto shrink-0">
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-auto shrink-0">
             {hovered?.category ?? ''}
           </span>
         </div>
@@ -112,12 +110,12 @@ export default function InventoryHeatmapModule({ data }: Props) {
         {rows.map(([category, products]) => (
           <div key={category} className="flex items-start gap-2">
             <p
-              className="w-[76px] shrink-0 pt-0.5 text-[10px] leading-tight text-slate-400 truncate text-right"
+              className="w-19 shrink-0 pt-0.5 text-[10px] leading-tight text-slate-400 dark:text-slate-500 truncate text-right"
               title={category}
             >
               {category}
             </p>
-            <div className="flex flex-wrap gap-[3px]">
+            <div className="flex flex-wrap gap-0.75">
               {[...products]
                 .sort((a, b) => a.days_of_supply - b.days_of_supply)
                 .map(p => {
@@ -126,7 +124,7 @@ export default function InventoryHeatmapModule({ data }: Props) {
                   return (
                     <div
                       key={p.product_id}
-                      className={`h-[14px] w-[14px] rounded-[3px] cursor-default transition-transform duration-100 ${bg} ${
+                      className={`h-3.5 w-3.5 rounded-[3px] cursor-default transition-transform duration-100 ${bg} ${
                         isHov ? 'scale-125 ring-1 ring-slate-500 ring-offset-1' : 'hover:scale-110'
                       }`}
                       onMouseEnter={() => setHoveredId(p.product_id)}
@@ -141,17 +139,17 @@ export default function InventoryHeatmapModule({ data }: Props) {
       </div>
 
       {/* ── Legend ────────────────────────────────────────────────────────────── */}
-      <div className="mt-3 flex items-center gap-1 flex-wrap border-t border-slate-100 pt-2.5">
-        <span className="mr-1.5 text-[9px] font-medium text-slate-400 uppercase tracking-wide">
+      <div className="mt-3 flex items-center gap-1 flex-wrap border-t border-slate-100 dark:border-slate-700 pt-2.5">
+        <span className="mr-1.5 text-[9px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">
           Supply
         </span>
         {LEGEND_ITEMS.map(({ bg, label }) => (
           <span key={label} className="flex items-center gap-0.5 mr-0.5">
-            <span className={`h-2.5 w-2.5 rounded-[2px] ${bg}`} />
-            <span className="text-[9px] text-slate-400">{label}</span>
+            <span className={`h-2.5 w-2.5 rounded-xs ${bg}`} />
+            <span className="text-[9px] text-slate-400 dark:text-slate-500">{label}</span>
           </span>
         ))}
-        <span className="ml-auto text-[9px] text-slate-400">
+        <span className="ml-auto text-[9px] text-slate-400 dark:text-slate-500">
           {data.products.length} products
         </span>
       </div>

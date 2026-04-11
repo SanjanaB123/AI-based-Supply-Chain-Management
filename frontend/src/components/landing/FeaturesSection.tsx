@@ -68,7 +68,8 @@ interface Feature {
   Icon: FC;
   title: string;
   description: string;
-  accent: string; // bg class for icon container
+  accent: string;       // bg class for icon container (light)
+  accentDark: string;   // bg class for icon container (dark)
   iconColor: string;
 }
 
@@ -79,7 +80,8 @@ const FEATURES: Feature[] = [
     description:
       'ML models trained on your historical data deliver 94%+ accurate demand signals up to 90 days ahead, letting you act before shelves go empty.',
     accent: 'bg-blue-50',
-    iconColor: 'text-blue-600',
+    accentDark: 'dark:bg-blue-950/60',
+    iconColor: 'text-blue-600 dark:text-blue-400',
   },
   {
     Icon: IconInventory,
@@ -87,7 +89,8 @@ const FEATURES: Feature[] = [
     description:
       'Live stock health dashboards surface critical, low, and healthy SKUs at a glance — across every store or warehouse in your network.',
     accent: 'bg-emerald-50',
-    iconColor: 'text-emerald-600',
+    accentDark: 'dark:bg-emerald-950/60',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
   },
   {
     Icon: IconRisk,
@@ -95,7 +98,8 @@ const FEATURES: Feature[] = [
     description:
       'Track lead times, flag supplier anomalies, and model disruption scenarios before they cascade into stock-outs or overstock situations.',
     accent: 'bg-red-50',
-    iconColor: 'text-red-600',
+    accentDark: 'dark:bg-red-950/60',
+    iconColor: 'text-red-600 dark:text-red-400',
   },
   {
     Icon: IconAlert,
@@ -103,7 +107,8 @@ const FEATURES: Feature[] = [
     description:
       'Configurable thresholds trigger instant alerts at 12ms latency — so your team responds to risk before customers feel the impact.',
     accent: 'bg-amber-50',
-    iconColor: 'text-amber-600',
+    accentDark: 'dark:bg-amber-950/60',
+    iconColor: 'text-amber-600 dark:text-amber-400',
   },
   {
     Icon: IconVisibility,
@@ -111,7 +116,8 @@ const FEATURES: Feature[] = [
     description:
       'One unified view across procurement, warehousing, and distribution. No more siloed spreadsheets or delayed status reports.',
     accent: 'bg-indigo-50',
-    iconColor: 'text-indigo-600',
+    accentDark: 'dark:bg-indigo-950/60',
+    iconColor: 'text-indigo-600 dark:text-indigo-400',
   },
   {
     Icon: IconAI,
@@ -119,7 +125,8 @@ const FEATURES: Feature[] = [
     description:
       'Stratos analyzes 50+ data signals per SKU — demand, seasonality, supplier health, variance — and surfaces the insights that matter most.',
     accent: 'bg-slate-100',
-    iconColor: 'text-slate-600',
+    accentDark: 'dark:bg-slate-800',
+    iconColor: 'text-slate-600 dark:text-slate-400',
   },
 ];
 
@@ -151,16 +158,21 @@ function FeatureCard({ feature }: { feature: Feature }) {
       ref={cardRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="feature-card cursor-default rounded-2xl border border-slate-200 bg-white p-7"
+      className="feature-card cursor-default rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 p-7"
       style={{ boxShadow: '0 1px 3px 0 rgba(0,0,0,0.06)' }}
     >
-      <div className={['mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl', feature.accent, feature.iconColor].join(' ')}>
+      <div className={[
+        'mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl',
+        feature.accent,
+        feature.accentDark,
+        feature.iconColor,
+      ].join(' ')}>
         <feature.Icon />
       </div>
-      <h3 className="mb-2.5 text-[15px] font-semibold leading-snug text-slate-900">
+      <h3 className="mb-2.5 text-[15px] font-semibold leading-snug text-slate-900 dark:text-slate-100">
         {feature.title}
       </h3>
-      <p className="text-[13.5px] leading-relaxed text-slate-500">
+      <p className="text-[13.5px] leading-relaxed text-slate-500 dark:text-slate-400">
         {feature.description}
       </p>
     </div>
@@ -199,19 +211,19 @@ export default function FeaturesSection() {
     <section
       ref={sectionRef}
       id="features"
-      className="bg-white py-24 md:py-32"
+      className="bg-white dark:bg-slate-950 py-24 md:py-32"
     >
       <div className="mx-auto max-w-480 px-6 lg:px-10">
 
         {/* Header */}
         <div className="mb-16 text-center">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-blue-600">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-blue-600 dark:text-blue-400">
             Capabilities
           </p>
-          <h2 className="text-[34px] font-bold tracking-tight text-slate-900 md:text-[42px]">
+          <h2 className="text-[34px] font-bold tracking-tight text-slate-900 dark:text-slate-100 md:text-[42px]">
             Everything your supply chain<br className="hidden md:block" /> needs to stay ahead
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-[16px] leading-relaxed text-slate-500">
+          <p className="mx-auto mt-4 max-w-xl text-[16px] leading-relaxed text-slate-500 dark:text-slate-400">
             Stratos integrates intelligence across inventory, forecasting, and risk in a
             single unified platform — no stitching required.
           </p>

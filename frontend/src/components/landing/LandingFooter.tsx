@@ -19,7 +19,7 @@ export default function LandingFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-slate-200 bg-slate-50">
+    <footer className="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
       <div className="mx-auto max-w-480 px-6 lg:px-10">
 
         {/* Main footer grid */}
@@ -33,24 +33,24 @@ export default function LandingFooter() {
               to="/"
               className="inline-flex items-baseline gap-1.5 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             >
-              <span className="text-[16px] font-bold tracking-tight text-slate-900">Stratos</span>
+              <span className="text-[16px] font-bold tracking-tight text-slate-900 dark:text-slate-100">Stratos</span>
               <span className="text-[9px] font-semibold uppercase tracking-widest text-blue-600">AI</span>
             </Link>
 
             {/* Tagline */}
-            <p className="mt-4 max-w-xs text-[13.5px] leading-relaxed text-slate-500">
+            <p className="mt-4 max-w-xs text-[13.5px] leading-relaxed text-slate-500 dark:text-slate-400">
               AI-powered supply chain intelligence. Predict disruption, optimize
               inventory, and make confident decisions — before problems arrive.
             </p>
 
             {/* Project attribution pill */}
-            <div className="mt-6 inline-flex items-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 py-2">
+            <div className="mt-6 inline-flex items-center gap-2.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-              <span className="text-[11.5px] font-medium text-slate-600">
+              <span className="text-[11.5px] font-medium text-slate-600 dark:text-slate-300">
                 Northeastern University
               </span>
-              <span className="h-3.5 w-px bg-slate-200" />
-              <span className="text-[11.5px] text-slate-400">
+              <span className="h-3.5 w-px bg-slate-200 dark:bg-slate-600" />
+              <span className="text-[11.5px] text-slate-400 dark:text-slate-500">
                 MLOps · Spring 2026
               </span>
             </div>
@@ -58,7 +58,7 @@ export default function LandingFooter() {
 
           {/* Product links */}
           <div>
-            <p className="mb-5 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+            <p className="mb-5 text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
               Product
             </p>
             <ul className="space-y-3.5">
@@ -66,7 +66,7 @@ export default function LandingFooter() {
                 <li key={item.label}>
                   <a
                     href={item.href}
-                    className="text-[13.5px] text-slate-500 transition-colors duration-150 hover:text-slate-900"
+                    className="text-[13.5px] text-slate-500 dark:text-slate-400 transition-colors duration-150 hover:text-slate-900 dark:hover:text-slate-100"
                   >
                     {item.label}
                   </a>
@@ -77,7 +77,7 @@ export default function LandingFooter() {
 
           {/* Project links */}
           <div>
-            <p className="mb-5 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+            <p className="mb-5 text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
               Project
             </p>
             <ul className="space-y-3.5">
@@ -85,7 +85,7 @@ export default function LandingFooter() {
                 <li key={item.label}>
                   <a
                     href={item.href}
-                    className="text-[13.5px] text-slate-500 transition-colors duration-150 hover:text-slate-900"
+                    className="text-[13.5px] text-slate-500 dark:text-slate-400 transition-colors duration-150 hover:text-slate-900 dark:hover:text-slate-100"
                   >
                     {item.label}
                   </a>
@@ -97,7 +97,7 @@ export default function LandingFooter() {
                   href="https://github.com/SanjanaB123/AI-based-Supply-Chain-Management"
                   target='_blank'
                   rel='noreferrer noopener'
-                  className="text-[13.5px] text-slate-500 transition-colors duration-150 hover:text-slate-900 underline"
+                  className="text-[13.5px] text-slate-500 dark:text-slate-400 transition-colors duration-150 hover:text-slate-900 dark:hover:text-slate-100 underline"
                 >
                   GitHub ↗
                 </a>
@@ -107,11 +107,11 @@ export default function LandingFooter() {
         </div>
 
         {/* Bottom bar */}
-        <div className="flex flex-col gap-2.5 border-t border-slate-200 py-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[12px] text-slate-400">
+        <div className="flex flex-col gap-2.5 border-t border-slate-200 dark:border-slate-800 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[12px] text-slate-400 dark:text-slate-500">
             © {year} Stratos AI. All rights reserved.
           </p>
-          <p className="text-[12px] text-slate-400">
+          <p className="text-[12px] text-slate-400 dark:text-slate-500">
             MLOps Final Project · Northeastern University · Spring 2026
           </p>
         </div>

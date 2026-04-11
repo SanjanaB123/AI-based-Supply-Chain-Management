@@ -1,5 +1,4 @@
 import { SignIn } from '@clerk/clerk-react';
-import clerkAppearance from '../lib/clerkAppearance';
 
 export default function SignInPage() {
   return (
@@ -8,7 +7,6 @@ export default function SignInPage() {
       path="/sign-in"
       signUpUrl="/sign-up"
       fallbackRedirectUrl="/dashboard"
-      appearance={clerkAppearance}
     />
   );
 }

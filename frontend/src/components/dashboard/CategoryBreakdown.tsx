@@ -15,7 +15,6 @@ interface CategoryRow {
 }
 
 export default function CategoryBreakdown({ data }: Props) {
-  // Aggregate products by category
   const catMap = new Map<string, CategoryRow>();
 
   for (const p of data.products) {
@@ -37,7 +36,7 @@ export default function CategoryBreakdown({ data }: Props) {
 
   if (rows.length === 0) {
     return (
-      <div className="flex items-center justify-center py-8 text-sm text-slate-400">
+      <div className="flex items-center justify-center py-8 text-sm text-slate-400 dark:text-slate-500">
         No category data available.
       </div>
     );
@@ -46,7 +45,7 @@ export default function CategoryBreakdown({ data }: Props) {
   return (
     <div className="space-y-4 h-92">
       {/* Color legend */}
-      <div className="flex items-center gap-4 text-[10px] text-slate-400">
+      <div className="flex items-center gap-4 text-[10px] text-slate-400 dark:text-slate-500">
         <span className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-red-500" />
           Critical
@@ -70,11 +69,11 @@ export default function CategoryBreakdown({ data }: Props) {
           return (
             <div key={row.name}>
               <div className="mb-1.5 flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-700 truncate">{row.name}</p>
-                <span className="ml-2 shrink-0 text-xs text-slate-400">{row.total}</span>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{row.name}</p>
+                <span className="ml-2 shrink-0 text-xs text-slate-400 dark:text-slate-500">{row.total}</span>
               </div>
               {/* Stacked health bar */}
-              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                 <div className="flex h-full">
                   <div
                     style={{ width: `${critPct}%` }}
@@ -92,12 +91,12 @@ export default function CategoryBreakdown({ data }: Props) {
               </div>
               <div className="mt-1 flex items-center gap-3 text-[10px]">
                 {row.critical > 0 && (
-                  <span className="font-medium text-red-600">{row.critical} critical</span>
+                  <span className="font-medium text-red-600 dark:text-red-400">{row.critical} critical</span>
                 )}
                 {row.low > 0 && (
-                  <span className="font-medium text-amber-600">{row.low} low</span>
+                  <span className="font-medium text-amber-600 dark:text-amber-400">{row.low} low</span>
                 )}
-                <span className="font-medium text-emerald-600">{row.healthy} healthy</span>
+                <span className="font-medium text-emerald-600 dark:text-emerald-400">{row.healthy} healthy</span>
               </div>
             </div>
           );

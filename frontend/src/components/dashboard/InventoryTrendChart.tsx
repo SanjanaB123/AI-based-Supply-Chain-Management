@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { DaysOfSupplyResponse } from '../../types/inventory';
+import { useTheme } from '../../app/theme/useTheme';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -37,10 +38,6 @@ interface DataPoint {
 }
 
 // ── Data derivation ────────────────────────────────────────────────────────────
-// For each historical time point T days ago, we reconstruct each product's
-// estimated days-of-supply by adding T to its current value (constant-velocity
-// assumption).  This produces a credible backward projection from live snapshot
-// data without requiring time-series endpoints.
 
 function dateLabel(daysAgo: number, tf: Timeframe): string {
   const d = new Date();
@@ -59,7 +56,6 @@ function buildTrendData(data: DaysOfSupplyResponse, tf: Timeframe): DataPoint[] 
   const { days, points } = opt;
   const { critical_below, low_below } = data.thresholds;
 
-  // Build evenly-spaced time points from oldest (daysAgo = days) to today (0)
   return Array.from({ length: points }, (_, i) => {
     const daysAgo = Math.round((days / (points - 1)) * (points - 1 - i));
     let critical = 0;
@@ -89,15 +85,22 @@ interface CustomTooltipProps {
   active?: boolean;
   payload?: TooltipEntry[];
   label?: string;
+  isDark: boolean;
 }
 
-function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
+function CustomTooltip({ active, payload, label, isDark }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
   const total = payload.reduce((s, p) => s + (p.value ?? 0), 0);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 shadow-md min-w-[140px]">
-      <p className="mb-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+    <div className={`rounded-xl border px-3.5 py-3 shadow-md min-w-35 ${
+      isDark
+        ? 'border-slate-700 bg-slate-800'
+        : 'border-slate-200 bg-white'
+    }`}>
+      <p className={`mb-2 text-[11px] font-semibold uppercase tracking-wide ${
+        isDark ? 'text-slate-400' : 'text-slate-500'
+      }`}>
         {label}
       </p>
       {[...payload].reverse().map(entry => (
@@ -106,15 +109,17 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
             className="h-2 w-2 shrink-0 rounded-full"
             style={{ background: entry.color }}
           />
-          <span className="text-[12px] capitalize text-slate-600 w-14">{entry.name}</span>
-          <span className="ml-auto text-[12px] font-semibold tabular-nums text-slate-800">
+          <span className={`text-[12px] capitalize w-14 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            {entry.name}
+          </span>
+          <span className={`ml-auto text-[12px] font-semibold tabular-nums ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
             {entry.value}
           </span>
         </div>
       ))}
-      <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2">
-        <span className="text-[11px] text-slate-400">Total</span>
-        <span className="text-[12px] font-semibold tabular-nums text-slate-700">{total}</span>
+      <div className={`mt-2 flex items-center justify-between border-t pt-2 ${isDark ? 'border-slate-700' : 'border-slate-100'}`}>
+        <span className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Total</span>
+        <span className={`text-[12px] font-semibold tabular-nums ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{total}</span>
       </div>
     </div>
   );
@@ -128,6 +133,8 @@ interface Props {
 
 export default function InventoryTrendChart({ data }: Props) {
   const [timeframe, setTimeframe] = useState<Timeframe>('30d');
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   const chartData = useMemo(
     () => buildTrendData(data, timeframe),
@@ -136,30 +143,35 @@ export default function InventoryTrendChart({ data }: Props) {
 
   const yMax = data.products.length + Math.max(2, Math.ceil(data.products.length * 0.08));
 
+  // Theme-aware chart colors
+  const gridColor    = isDark ? '#1e293b' : '#f1f5f9';
+  const axisColor    = isDark ? '#475569' : '#94a3b8';
+  const cursorColor  = isDark ? '#475569' : '#cbd5e1';
+
   return (
     <div>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[13px] font-semibold text-slate-800 leading-tight">
+          <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200 leading-tight">
             Stock Health Over Time
           </p>
-          <p className="mt-0.5 text-[11px] text-slate-400 leading-snug">
+          <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500 leading-snug">
             Projected from current daily sales velocity · products by health status
           </p>
         </div>
 
         {/* Timeframe pill selector */}
-        <div className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
+        <div className="flex items-center gap-0.5 rounded-lg bg-slate-100 dark:bg-slate-700 p-0.5">
           {TIMEFRAME_OPTIONS.map(opt => (
             <button
               key={opt.id}
               onClick={() => setTimeframe(opt.id)}
               className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                 timeframe === opt.id
-                  ? 'bg-white text-slate-800 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-100 shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
               {opt.label}
@@ -177,32 +189,29 @@ export default function InventoryTrendChart({ data }: Props) {
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="#f1f5f9"
+              stroke={gridColor}
               vertical={false}
             />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 10, fill: '#94a3b8' }}
+              tick={{ fontSize: 10, fill: axisColor }}
               axisLine={false}
               tickLine={false}
               dy={5}
             />
             <YAxis
               domain={[0, yMax]}
-              tick={{ fontSize: 10, fill: '#94a3b8' }}
+              tick={{ fontSize: 10, fill: axisColor }}
               axisLine={false}
               tickLine={false}
               allowDecimals={false}
               width={36}
             />
             <Tooltip
-              content={<CustomTooltip />}
-              cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }}
+              content={<CustomTooltip isDark={isDark} />}
+              cursor={{ stroke: cursorColor, strokeWidth: 1 }}
             />
 
-            {/* Stack order: critical (bottom) → low → healthy (top)
-                This means: as we move right toward today, the red/amber base grows
-                and the green top shrinks — clearly showing health deterioration. */}
             <Area
               type="monotone"
               dataKey="critical"
@@ -235,18 +244,18 @@ export default function InventoryTrendChart({ data }: Props) {
       </div>
 
       {/* ── Legend + meta ──────────────────────────────────────────────────── */}
-      <div className="mt-3.5 flex items-center gap-5 border-t border-slate-100 pt-3">
+      <div className="mt-3.5 flex items-center gap-5 border-t border-slate-100 dark:border-slate-700 pt-3">
         {[
           { color: '#10b981', label: 'Healthy' },
           { color: '#f59e0b', label: 'Low stock' },
           { color: '#ef4444', label: 'Critical'  },
         ].map(({ color, label }) => (
-          <span key={label} className="flex items-center gap-1.5 text-[11px] text-slate-500">
+          <span key={label} className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
             {label}
           </span>
         ))}
-        <span className="ml-auto text-[10px] text-slate-400 text-right">
+        <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 text-right">
           {data.products.length} products · estimated projection
         </span>
       </div>

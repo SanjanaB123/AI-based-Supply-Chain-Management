@@ -17,25 +17,25 @@ export default function ModuleSkeleton() {
     <div className="animate-pulse">
       {/* Callout placeholder row */}
       <div className="mb-4 grid grid-cols-2 gap-3">
-        <div className="h-16 rounded-lg bg-slate-100" />
-        <div className="h-16 rounded-lg bg-slate-100" />
+        <div className="h-16 rounded-lg bg-slate-100 dark:bg-slate-700" />
+        <div className="h-16 rounded-lg bg-slate-100 dark:bg-slate-700" />
       </div>
 
       {/* Bar rows */}
       <div className="space-y-2.5">
         {ROWS.map((row, i) => (
           <div key={i} className="flex items-center gap-2.5">
-            <div className={`h-2.5 shrink-0 rounded-full bg-slate-100 ${row.labelW}`} />
-            <div className="flex-1 h-4 overflow-hidden rounded bg-slate-100">
-              <div className="h-full rounded bg-slate-100" style={{ width: row.barW }} />
+            <div className={`h-2.5 shrink-0 rounded-full bg-slate-100 dark:bg-slate-700 ${row.labelW}`} />
+            <div className="flex-1 h-4 overflow-hidden rounded bg-slate-100 dark:bg-slate-700">
+              <div className="h-full rounded bg-slate-100 dark:bg-slate-700" style={{ width: row.barW }} />
             </div>
-            <div className="h-2.5 w-8 shrink-0 rounded-full bg-slate-100" />
+            <div className="h-2.5 w-8 shrink-0 rounded-full bg-slate-100 dark:bg-slate-700" />
           </div>
         ))}
       </div>
 
       {/* Footer note placeholder */}
-      <div className="mt-4 h-2.5 w-48 rounded-full bg-slate-100" />
+      <div className="mt-4 h-2.5 w-48 rounded-full bg-slate-100 dark:bg-slate-700" />
     </div>
   );
 }

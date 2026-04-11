@@ -21,13 +21,13 @@ export default function StoreSelector({ stores, selected, onChange, variant = 'l
       className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors ${
         isDark
           ? 'border border-white/10 bg-white/5 hover:bg-white/10'
-          : 'border border-slate-200 bg-slate-50 hover:bg-slate-100'
+          : 'border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-700'
       }`}
     >
       <PinIcon />
       <label
         htmlFor="store-select"
-        className="select-none text-[11px] font-medium text-slate-400"
+        className="select-none text-[11px] font-medium text-slate-400 dark:text-slate-500"
       >
         Store
       </label>
@@ -36,7 +36,7 @@ export default function StoreSelector({ stores, selected, onChange, variant = 'l
         value={selected}
         onChange={e => onChange(e.target.value)}
         className={`border-0 bg-transparent text-[13px] font-semibold focus:outline-none focus:ring-0 cursor-pointer ${
-          isDark ? 'text-slate-100' : 'text-slate-800'
+          isDark ? 'text-slate-100' : 'text-slate-800 dark:text-slate-200'
         }`}
       >
         {stores.map(store => (

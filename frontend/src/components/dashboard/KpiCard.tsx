@@ -22,15 +22,15 @@ const accentBar: Record<ColorVariant, string> = {
 };
 
 const labelColor: Record<ColorVariant, string> = {
-  red:     'text-red-600',
-  amber:   'text-amber-600',
-  emerald: 'text-emerald-600',
-  indigo:  'text-indigo-600',
+  red:     'text-red-600 dark:text-red-400',
+  amber:   'text-amber-600 dark:text-amber-400',
+  emerald: 'text-emerald-600 dark:text-emerald-400',
+  indigo:  'text-indigo-600 dark:text-indigo-400',
 };
 
 export default function KpiCard({ label, value, subtext, color }: Props) {
   return (
-    <div className="flex flex-col rounded-xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+    <div className="flex flex-col rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
       {/* Colored accent bar across the top */}
       <div className={`h-0.5 w-full ${accentBar[color]}`} />
 
@@ -45,10 +45,10 @@ export default function KpiCard({ label, value, subtext, color }: Props) {
 
         {/* Value + subtext */}
         <div>
-          <p className="text-3xl font-bold tracking-tight text-slate-900 xl:text-4xl tabular-nums">
+          <p className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 xl:text-4xl tabular-nums">
             {value.toLocaleString()}
           </p>
-          <p className="mt-1 text-xs text-slate-400 xl:text-[13px]">{subtext}</p>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500 xl:text-[13px]">{subtext}</p>
         </div>
       </div>
     </div>

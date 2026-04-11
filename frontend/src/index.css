@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode — applies when .dark is on <html> or any ancestor */
+@variant dark (&:where(.dark, .dark *));
+
 *, *::before, *::after {
   box-sizing: border-box;
 }

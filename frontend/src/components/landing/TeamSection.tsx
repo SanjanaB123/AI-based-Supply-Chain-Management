@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useTheme } from '../../app/theme/useTheme';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -77,6 +78,7 @@ const TEAM: TeamMember[] = [
 
 export default function TeamSection() {
   const sectionRef = useRef<HTMLElement>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -105,19 +107,19 @@ export default function TeamSection() {
     <section
       ref={sectionRef}
       id="team"
-      className="border-t border-slate-100 bg-white py-24 md:py-32"
+      className="border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 py-24 md:py-32"
     >
       <div className="mx-auto max-w-480 px-6 lg:px-10">
 
         {/* Header */}
         <div className="mb-14 text-center">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
             Project team
           </p>
-          <h2 className="text-[34px] font-bold tracking-tight text-slate-900 md:text-[42px]">
+          <h2 className="text-[34px] font-bold tracking-tight text-slate-900 dark:text-slate-100 md:text-[42px]">
             Built by the Stratos team
           </h2>
-          <p className="mx-auto mt-4 max-w-lg text-[16px] leading-relaxed text-slate-500">
+          <p className="mx-auto mt-4 max-w-lg text-[16px] leading-relaxed text-slate-500 dark:text-slate-400">
             A Northeastern University MLOps capstone project, Spring 2026.
           </p>
         </div>
@@ -127,10 +129,14 @@ export default function TeamSection() {
           {TEAM.map((member) => (
             <div
               key={member.name}
-              className="team-card flex flex-col items-center rounded-2xl border border-slate-200 px-6 py-9 text-center"
-              style={{ boxShadow: '0 1px 4px 0 rgba(0,0,0,0.04)', backgroundColor: member.memberBg }}
+              className="team-card flex flex-col items-center rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 px-6 py-9 text-center"
+              style={{
+                boxShadow: '0 1px 4px 0 rgba(0,0,0,0.04)',
+                // Pastel bg only in light mode — dark:bg-slate-800 class handles dark mode
+                backgroundColor: theme === 'light' ? member.memberBg : undefined,
+              }}
             >
-              {/* Avatar — initials always rendered underneath; photo stacked on top and hidden on error */}
+              {/* Avatar — initials rendered underneath; photo stacked on top */}
               <div className="relative h-36 w-36 shrink-0">
                 <div
                   className={[
@@ -152,12 +158,12 @@ export default function TeamSection() {
               </div>
 
               {/* Name */}
-              <p className="mt-4 text-[15px] font-semibold text-slate-900">
+              <p className="mt-4 text-[15px] font-semibold text-slate-900 dark:text-slate-100">
                 {member.name}
               </p>
 
-              {/* Contribution — allowed to wrap */}
-              <p className="mt-1.5 text-[12.5px] leading-relaxed text-slate-500">
+              {/* Contribution */}
+              <p className="mt-1.5 text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400">
                 {member.contribution}
               </p>
             </div>

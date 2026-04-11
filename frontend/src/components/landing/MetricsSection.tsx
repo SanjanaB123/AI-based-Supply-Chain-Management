@@ -35,7 +35,7 @@ const METRICS: Metric[] = [
   },
 ];
 
-// ── Section ───────────────────────────────────────────────────────────────────
+// ── Section — intentionally dark in both themes (brand section) ───────────────
 
 export default function MetricsSection() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -99,7 +99,7 @@ export default function MetricsSection() {
               </div>
 
               {/* Sub */}
-              <div className="mt-1.5 text-[12px] leading-relaxed text-slate-600">
+              <div className="mt-1.5 text-[12px] leading-relaxed text-slate-500">
                 {metric.sub}
               </div>
             </div>
@@ -114,7 +114,7 @@ export default function MetricsSection() {
         </div>
 
         {/* Tagline below metrics */}
-        <p className="mt-6 text-center text-[13px] text-slate-600">
+        <p className="mt-6 text-center text-[13px] text-slate-500">
           Stratos is a course capstone project — figures reflect ML model benchmarks on test data.
         </p>
       </div>

@@ -1833,3 +1833,212 @@ None. No new env vars, no new packages, no Clerk changes.
 8. **Dashboard unchanged** — `/dashboard` layout, sidebar, modules, and nav are exactly as before
 9. **Auth pages unchanged** — `/sign-in` and `/sign-up` split layout unchanged
 10. `npx tsc --noEmit` — zero TypeScript errors
+
+---
+
+## Step 12 — Dark / Light Theme System
+
+### What was done
+
+Implemented a complete, production-grade dark/light theme system across the entire frontend.
+
+**Theme infrastructure (`src/app/theme/`)**
+
+- `ThemeProvider.tsx` — React context provider that reads `localStorage` (`stratos-theme` key), applies/removes the `.dark` class on `<html>`, and persists the user's choice.
+- `useTheme.ts` — `useTheme()` hook that returns `{ theme, toggleTheme }`.
+- Both are exported from the `src/app/theme/` directory.
+
+**Flash-of-wrong-theme prevention**
+
+An inline `<script>` block is injected in `index.html`'s `<head>` that runs synchronously before React hydrates:
+
+```html
+<script>
+  (function () {
+    var saved = localStorage.getItem('stratos-theme');
+    if (saved === 'dark') { document.documentElement.classList.add('dark'); }
+  })();
+</script>
+```
+
+**Tailwind v4 dark mode configuration (`src/index.css`)**
+
+```css
+@import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
+```
+
+This configures class-based dark mode — `dark:` utilities activate when any ancestor has `.dark`. Light mode is the default; there are **no `light:` utilities** anywhere in the codebase.
+
+**Theme toggle button**
+
+A sun/moon SVG icon toggle appears in:
+- The desktop/mobile top bar (`AppShell.tsx`)
+- The landing page nav (`LandingNav.tsx`)
+
+**Design tokens**
+
+| Surface | Light | Dark |
+|---|---|---|
+| Page background | `bg-white` / `bg-slate-50` | `dark:bg-slate-950` / `dark:bg-slate-900` |
+| Card / module | `bg-white` | `dark:bg-slate-800` |
+| Sidebar | `bg-white` | `dark:bg-slate-950` |
+| Active nav item | `bg-blue-200 text-blue-700` | `dark:bg-blue-900/40 dark:text-blue-400` |
+| Skeleton fills | `bg-slate-100` / `bg-slate-200` | `dark:bg-slate-700` |
+| Dividers / borders | `border-slate-100/200` | `dark:border-slate-700` |
+| Semantic colors | `red-500`, `amber-500`, `emerald-500` (preserved in both modes) |
+
+**Chart theming (Recharts)**
+
+`StockHealthChart` and `InventoryTrendChart` use `useTheme()` to pass dynamic `stroke`, `fill`, and `contentStyle` props directly to Recharts primitives (`CartesianGrid`, `XAxis`, `YAxis`, `Tooltip`, `Cursor`). This avoids CSS hacks and keeps chart elements fully responsive to theme changes.
+
+**Coverage**
+
+Every component in the app now carries `dark:` variants:
+
+- Landing: `LandingNav`, `HeroSection`, `FeaturesSection`, `MetricsSection`, `WorkflowSection`, `TeamSection`, `LandingFooter`
+- Auth: `AuthLayout`, `RootLayout`
+- Dashboard shell: `AppShell`, `DashboardPage`
+- KPI / Skeleton: `KpiCard`, `KpiSkeleton`, `ChartSkeleton`, `ModuleSkeleton`, `SectionContainer`, `StoreSelector`
+- Charts: `StockHealthChart`, `InventoryTrendChart`
+- Modules: `CriticalItemsTable`, `DaysOfSupplyModule`, `SellThroughModule`, `LeadTimeRiskModule`, `ShrinkageModule`, `RiskSpotlightPanel`, `CategoryBreakdown`, `VarianceHighlights`, `InventoryHeatmapModule`
+
+**Notes**
+
+- `MetricsSection` intentionally stays `bg-slate-950` in both modes (it's a brand-dark section by design).
+- `HeroSection` dashboard preview stays dark in both modes (it's a product UI mockup).
+- Team card pastel backgrounds are applied via conditional inline style only in light mode; `dark:bg-slate-800` handles dark mode without needing `!important`.
+- `clerkAppearance.ts` was superseded in Step 13 — see below.
+
+---
+
+### New files
+
+| File | Purpose |
+|---|---|
+| `src/app/theme/ThemeProvider.tsx` | Context provider + localStorage persistence |
+| `src/app/theme/useTheme.ts` | `useTheme()` hook |
+
+---
+
+### How to verify this step
+
+1. `cd frontend && npm run dev`
+2. Open `http://localhost:5173/` — default is **light mode**
+3. Click the sun/moon icon in the nav — page switches to **dark mode** immediately with no flash
+4. Refresh the page — dark mode persists (localStorage `stratos-theme = "dark"`)
+5. Navigate to `/dashboard` — sidebar, topbar, cards, charts, and all modules are themed correctly
+6. Toggle again — back to light; all pastel team card backgrounds return
+7. `npx tsc --noEmit` — zero TypeScript errors
+
+---
+
+## Step 13 — Clerk Theming + Sidebar Appearance Toggle + Logo
+
+### What was done
+
+Completed the theme system by making all Clerk UI surfaces (auth cards, UserButton popup) fully responsive to the app's light/dark theme, added a second theme toggle in the sidebar's Settings area, and replaced all text wordmarks with theme-aware logo images.
+
+**How Clerk theming works**
+
+Clerk does not read Tailwind's `.dark` class automatically — its internal styles are isolated from the DOM class. The solution is to pass an explicit `appearance` object to `ClerkProvider` that matches the current theme. When the user toggles the theme, the appearance object updates and Clerk re-renders with the new styles.
+
+Architecture:
+- `src/lib/clerkTheme.ts` — defines `clerkLightTheme` and `clerkDarkTheme`, each containing a `variables` block (CSS custom properties that Clerk reads internally) and an `elements` block (Tailwind class names applied directly to Clerk DOM nodes).
+- `src/app/ThemedClerkProvider.tsx` — sits inside `<ThemeProvider>`, uses `useTheme()`, and passes the correct appearance object to `<ClerkProvider>` based on the active theme.
+- `src/main.tsx` — updated to use `<ThemedClerkProvider>` in place of `<ClerkProvider>` directly.
+- `src/pages/SignInPage.tsx` and `SignUpPage.tsx` — removed per-component `appearance` overrides; they now inherit from the provider.
+- `src/lib/clerkAppearance.ts` — deleted (superseded by `clerkTheme.ts`).
+
+**Specificity overrides for Clerk elements**
+
+Some Clerk elements apply their own hardcoded color styles with enough specificity to override plain Tailwind classes. These elements use the Tailwind v4 `!` important suffix (`text-slate-200!`, `border-slate-700!`, etc.) in the dark theme to ensure correct rendering:
+- `socialButtonsBlockButton` and `socialButtonsBlockButtonText` — "Login with Google" border and text color in dark mode
+- `userButtonPopoverActionButtonText` — "Manage Account" and "Sign Out" text in the UserButton popup
+
+**Clerk appearance design**
+
+| Element | Light | Dark |
+|---|---|---|
+| Auth card | `bg-transparent` (layout shows through) | `bg-transparent` (layout's `dark:bg-slate-950` shows through) |
+| Inputs | `bg-slate-50 border-slate-200 text-slate-900` | `bg-slate-800 border-slate-700 text-slate-100` |
+| Primary button | `bg-blue-700 text-white hover:bg-blue-800` | `bg-blue-600 text-white hover:bg-blue-500` |
+| Header title | `text-slate-900` | `text-slate-100` |
+| Footer links | `text-blue-700 hover:text-blue-800` | `text-blue-400 hover:text-blue-300` |
+| Divider | `bg-slate-200` | `bg-slate-700` |
+| Alerts | `text-red-700` | `text-red-400` |
+| OAuth button | `bg-white border-slate-200 text-slate-700` | `bg-slate-800 border-slate-700! text-slate-200!` |
+| UserButton popup card | `bg-white border-slate-200/80 shadow-xl` | `bg-slate-800 border-slate-700/80 shadow-xl` |
+| Popup action buttons | `hover:bg-slate-50 text-slate-700` | `hover:bg-slate-700 text-slate-200!` |
+| Popup user name | `text-slate-900` | `text-slate-100` |
+| Popup email | `text-slate-500` | `text-slate-400` |
+
+**Sidebar theme toggle**
+
+A compact "Appearance" row was added to the sidebar's bottom section, between the Settings nav item and the user account row. It shows:
+- Label: `Appearance` (muted)
+- Button: sun/moon icon + `Light` / `Dark` text label
+
+It calls the same `toggleTheme()` from `useTheme()` as the top-bar button — both are wired to the same context state, so they stay in sync automatically.
+
+**Logo images**
+
+Two logo files placed in `public/icons/`:
+- `logo-light.png` — used when the app is in light mode
+- `logo-dark.png` — used when the app is in dark mode
+
+The text "Stratos" + "AI" wordmarks in all nav locations have been replaced with `<img>` elements that switch source based on `theme` from `useTheme()`:
+
+| Location | Light | Dark | Notes |
+|---|---|---|---|
+| Dashboard sidebar | `logo-light.png` | `logo-dark.png` | `h-7` |
+| Dashboard mobile header | `logo-light.png` | `logo-dark.png` | `h-7` |
+| Landing nav | `logo-light.png` | `logo-dark.png` | `h-7` |
+| Auth mobile header | `logo-light.png` | `logo-dark.png` | `h-7` |
+| Auth left panel | always `logo-dark.png` | always `logo-dark.png` | Left panel always has `bg-slate-950/70` overlay; `h-8 md:h-9 xl:h-12` |
+
+---
+
+### Files created
+
+| File | Purpose |
+|---|---|
+| `src/lib/clerkTheme.ts` | Light + dark Clerk appearance objects |
+| `src/app/ThemedClerkProvider.tsx` | Theme-aware ClerkProvider wrapper |
+
+### Files modified
+
+| File | Change |
+|---|---|
+| `src/main.tsx` | Replaced `<ClerkProvider>` with `<ThemedClerkProvider>` |
+| `src/pages/SignInPage.tsx` | Removed static `appearance` prop (inherits from provider) |
+| `src/pages/SignUpPage.tsx` | Removed static `appearance` prop (inherits from provider) |
+| `src/app/AppShell.tsx` | Added sidebar Appearance toggle row; replaced wordmarks with logo images |
+| `src/app/AuthLayout.tsx` | Added `useTheme`; replaced wordmarks with logo images |
+| `src/components/landing/LandingNav.tsx` | Replaced wordmark with logo image |
+| `src/lib/clerkTheme.ts` | Added `!` important suffix to social button and popup action text in dark theme |
+
+### Files deleted
+
+| File | Reason |
+|---|---|
+| `src/lib/clerkAppearance.ts` | Superseded by `clerkTheme.ts` |
+
+---
+
+### How to verify this step
+
+1. `cd frontend && npm run dev`
+2. **Logo** — in light mode the light logo appears in the navbar, sidebar, and auth pages; toggle to dark mode and the dark logo replaces it everywhere instantly
+3. Open `http://localhost:5173/sign-in`
+   - **Light mode**: white card, slate text, white inputs, blue submit button, "Login with Google" has dark border and text
+   - Toggle to **dark mode**: `slate-950` background, light text, dark slate inputs, "Login with Google" shows light border and light text
+4. Open `http://localhost:5173/sign-up` — same theming as sign-in
+5. Sign in and go to `/dashboard`
+6. Click the `UserButton` avatar (top-right or top-bar):
+   - Light: white popup, dark text on "Manage Account" / "Sign Out"
+   - Dark: slate-800 popup, light text on "Manage Account" / "Sign Out"
+7. Toggle theme from the **top-bar** sun/moon button — entire app (including logo) updates instantly
+8. Toggle theme from the **sidebar** Appearance row — same result, synced with top-bar
+9. Refresh — theme persists from localStorage
+10. `npx tsc --noEmit` — zero TypeScript errors

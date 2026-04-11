@@ -46,10 +46,11 @@ function ConnectorArrow() {
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path
           d="M4 10h12M13 6.5l3.5 3.5-3.5 3.5"
-          stroke="rgb(203,213,225)"
+          stroke="currentColor"
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
+          className="text-slate-300 dark:text-slate-600"
         />
       </svg>
     </div>
@@ -121,19 +122,19 @@ export default function WorkflowSection() {
     <section
       ref={sectionRef}
       id="workflow"
-      className="border-t border-slate-100 bg-slate-50 py-24 md:py-32"
+      className="border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 py-24 md:py-32"
     >
       <div className="mx-auto max-w-480 px-6 lg:px-10">
 
         {/* Header */}
         <div className="mb-16 text-center">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-blue-600">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-blue-600 dark:text-blue-400">
             How it works
           </p>
-          <h2 className="text-[34px] font-bold tracking-tight text-slate-900 md:text-[42px]">
+          <h2 className="text-[34px] font-bold tracking-tight text-slate-900 dark:text-slate-100 md:text-[42px]">
             From raw data to confident decisions
           </h2>
-          <p className="mx-auto mt-4 max-w-lg text-[16px] leading-relaxed text-slate-500">
+          <p className="mx-auto mt-4 max-w-lg text-[16px] leading-relaxed text-slate-500 dark:text-slate-400">
             Three clear steps — from integration to action. No complexity,
             no guesswork.
           </p>
@@ -149,27 +150,27 @@ export default function WorkflowSection() {
             >
               {/* Card */}
               <div
-                className="flex flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-8"
+                className="flex flex-1 flex-col rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 p-8"
                 style={{ boxShadow: '0 1px 6px 0 rgba(0,0,0,0.05)' }}
               >
                 {/* Step badge + inline rule */}
                 <div className="mb-6 flex items-center gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold tracking-tight text-white">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 dark:bg-slate-600 text-[11px] font-bold tracking-tight text-white">
                     {s.step}
                   </span>
-                  <div className="h-px flex-1 bg-linear-to-r from-slate-200 to-transparent" />
+                  <div className="h-px flex-1 bg-linear-to-r from-slate-200 dark:from-slate-600 to-transparent" />
                 </div>
 
                 {/* Icon */}
-                <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
                   <s.Icon />
                 </div>
 
                 {/* Copy */}
-                <h3 className="mb-2 text-[16px] font-semibold leading-snug text-slate-900">
+                <h3 className="mb-2 text-[16px] font-semibold leading-snug text-slate-900 dark:text-slate-100">
                   {s.title}
                 </h3>
-                <p className="text-[13.5px] leading-relaxed text-slate-500">
+                <p className="text-[13.5px] leading-relaxed text-slate-500 dark:text-slate-400">
                   {s.description}
                 </p>
               </div>
@@ -183,7 +184,7 @@ export default function WorkflowSection() {
                   aria-hidden="true"
                   className="flex justify-center md:hidden py-1"
                 >
-                  <div className="h-4 w-px bg-slate-200" />
+                  <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
                 </div>
               )}
             </div>

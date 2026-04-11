@@ -1,4 +1,5 @@
 import { Link, Outlet } from 'react-router-dom';
+import { useTheme } from './theme/useTheme';
 
 // ── Stat callouts shown on the branded left panel ─────────────────────────────
 
@@ -11,6 +12,8 @@ const STATS = [
 // ── Layout ────────────────────────────────────────────────────────────────────
 
 export default function AuthLayout() {
+  const { theme } = useTheme();
+
   return (
     <div className="flex min-h-screen w-full">
 
@@ -34,16 +37,13 @@ export default function AuthLayout() {
         {/* Content layer */}
         <div className="relative flex h-full flex-col justify-between px-10 py-11 xl:px-14">
 
-          {/* Brand wordmark */}
-          <Link
-            to="/"
-            tabIndex={-1}
-            className="inline-flex items-baseline gap-2 focus:outline-none"
-          >
-            <span className="text-sm font-extrabold tracking-tight text-white md:text-[17px] xl:text-[33px]">Stratos</span>
-            <span className="text-[8px] font-semibold uppercase tracking-widest text-blue-400 md:text-[10px] xl:text-[17px]">
-              AI
-            </span>
+          {/* Brand wordmark — left panel always has dark overlay, always use dark logo */}
+          <Link to="/" tabIndex={-1} className="focus:outline-none">
+            <img
+              src="/icons/logo-dark.png"
+              alt="Stratos"
+              className="h-8 md:h-9 xl:h-12 w-auto"
+            />
           </Link>
 
           {/* Value proposition block */}
@@ -80,17 +80,18 @@ export default function AuthLayout() {
       </aside>
 
       {/* ── Right: auth form panel ────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-12 sm:px-10">
+      <div className="flex flex-1 flex-col items-center justify-center bg-white dark:bg-slate-950 px-6 py-12 sm:px-10">
 
         {/* Mobile-only brand header (hidden on md+) */}
         <div className="mb-8 text-center md:hidden">
-          <Link to="/" className="inline-flex items-baseline gap-2">
-            <span className="text-xl font-bold tracking-tight text-slate-900">Stratos</span>
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-blue-500">
-              AI
-            </span>
+          <Link to="/" className="inline-flex focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded-sm">
+            <img
+              src={theme === 'dark' ? '/icons/logo-dark.png' : '/icons/logo-light.png'}
+              alt="Stratos"
+              className="h-7 w-auto"
+            />
           </Link>
-          <p className="mt-1 text-sm text-slate-500">AI-powered supply chain intelligence</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">AI-powered supply chain intelligence</p>
         </div>
 
         {/* Clerk form — constrained to Clerk's natural card width */}
@@ -99,7 +100,7 @@ export default function AuthLayout() {
         </div>
 
         {/* Bottom footnote */}
-        <p className="mt-10 text-center text-[11px] text-slate-400">
+        <p className="mt-10 text-center text-[11px] text-slate-400 dark:text-slate-600">
           © 2025 Stratos · All rights reserved
         </p>
       </div>
