@@ -2,7 +2,7 @@
 variable "project_id" {
   description = "GCP project ID"
   type        = string
-  default     = "mlops-project-488302"
+  default     = "liquid-fulcrum-489019-g1"
 }
 
 variable "region" {

@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 env:
-  GCP_PROJECT_ID: mlops-project-488302
+  GCP_PROJECT_ID: liquid-fulcrum-489019-g1
   GCP_REGION: us-central1
   AR_REPO: airflow-images-prod
   IMAGE_NAME: airflow
