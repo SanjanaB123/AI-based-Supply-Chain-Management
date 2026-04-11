@@ -368,6 +368,104 @@ def predict_demand(
         return {"status": "error", "message": f"Prediction failed: {str(e)}", "traceback": traceback.format_exc()}
 
 
+@mcp.tool()
+def smart_predict_demand(store_id: str, product_id: str, target_date: str) -> dict:
+    """
+    Predict demand for a product at a store for a given date.
+    Automatically computes all required features from historical retail_snapshot data.
+    Only needs store_id (e.g. S001), product_id (e.g. P0001), and target_date (YYYY-MM-DD).
+    """
+    try:
+        retail_col = db["retail_snapshot"]
+        inv_col = db["inventory_snapshot"]
+
+        # Get historical daily data for this store+product, sorted by date
+        docs = list(retail_col.find(
+            {"Store ID": store_id, "Product ID": product_id},
+            {"_id": 0}
+        ).sort("Date", -1).limit(30))
+
+        if not docs:
+            return {"status": "error", "message": f"No retail_snapshot data for {product_id} at {store_id}"}
+
+        df = pd.DataFrame(docs)
+        df["Date"] = pd.to_datetime(df["Date"])
+        df = df.sort_values("Date")
+
+        # Get inventory snapshot for current stock and lead time
+        inv = inv_col.find_one(
+            {"Store ID": store_id, "Product ID": product_id},
+            {"_id": 0}
+        )
+        if not inv:
+            return {"status": "error", "message": f"No inventory data for {product_id} at {store_id}"}
+
+        # Compute lag features from Units Sold
+        sales = df["Units Sold"].values
+        sales_lag_1 = float(sales[-1]) if len(sales) >= 1 else 0.0
+        sales_lag_7 = float(sales[-7]) if len(sales) >= 7 else sales_lag_1
+        sales_lag_14 = float(sales[-14]) if len(sales) >= 14 else sales_lag_1
+        sales_lag_28 = float(sales[-28]) if len(sales) >= 28 else sales_lag_1
+
+        # Rolling averages
+        s = pd.Series(sales)
+        sales_roll_mean_7 = float(s.tail(7).mean())
+        sales_roll_mean_14 = float(s.tail(14).mean())
+        sales_roll_mean_28 = float(s.tail(28).mean())
+        sales_roll_std_7 = float(s.tail(7).std()) if len(s) >= 7 else 0.0
+        sales_ewm_28 = float(s.ewm(span=28).mean().iloc[-1])
+
+        # Other features from latest row
+        latest = df.iloc[-1]
+        price = float(latest.get("Price", 5.0))
+        competitor = float(latest.get("Competitor Pricing", price))
+        discount = float(latest.get("Discount", 0.0))
+        holiday = int(latest.get("Holiday/Promotion", 0))
+        inventory_level = int(inv.get("Current Stock", 0))
+        lead_time_days = int(inv.get("Lead Time Days", 7))
+
+        price_vs_competitor = round(price / competitor, 4) if competitor > 0 else 1.0
+        effective_price = round(price * (1 - discount), 2)
+        discount_x_holiday = round(discount * holiday, 4)
+        demand_forecast_lag1 = float(latest.get("Demand Forecast", sales_lag_1))
+        stockout_flag = 1 if inventory_level <= 0 else 0
+        lead_time_demand = round(sales_roll_mean_7 * lead_time_days, 2)
+        reorder_event = 1 if inventory_level < 50 else 0
+
+        # Category/Region/Seasonality encoding (simple ordinal)
+        cat_map = {"Snacks": 0, "Beverages": 1, "Dairy": 2, "Frozen Foods": 3, "Personal Care": 4,
+                   "Household": 5, "Bakery": 6, "Produce": 7, "Meat": 8, "Canned Goods": 9}
+        region_map = {"Northeast": 0, "Southeast": 1, "Midwest": 2, "West": 3, "Southwest": 4}
+        season_map = {"Winter": 0, "Spring": 1, "Summer": 2, "Fall": 3}
+
+        category_enc = cat_map.get(inv.get("Category", ""), 0)
+        region_enc = region_map.get(inv.get("Region", ""), 0)
+        seasonality_enc = season_map.get(str(latest.get("Seasonality", "Spring")), 1)
+
+        # Call the actual predict_demand tool
+        result = predict_demand(
+            store_id=store_id, product_id=product_id, target_date=target_date,
+            sales_lag_1=sales_lag_1, sales_lag_7=sales_lag_7,
+            sales_lag_14=sales_lag_14, sales_lag_28=sales_lag_28,
+            sales_roll_mean_7=sales_roll_mean_7, sales_roll_mean_14=sales_roll_mean_14,
+            sales_roll_mean_28=sales_roll_mean_28, sales_roll_std_7=sales_roll_std_7,
+            sales_ewm_28=sales_ewm_28, demand_forecast_lag1=demand_forecast_lag1,
+            price_vs_competitor=price_vs_competitor, effective_price=effective_price,
+            holiday_promotion=holiday, discount=discount,
+            discount_x_holiday=discount_x_holiday,
+            inventory_level=inventory_level, stockout_flag=stockout_flag,
+            lead_time_demand=lead_time_demand, lead_time_days=lead_time_days,
+            reorder_event=reorder_event,
+            category_enc=category_enc, region_enc=region_enc,
+            seasonality_enc=seasonality_enc, y_pred_baseline=sales_lag_1,
+        )
+        return result
+
+    except Exception as e:
+        import traceback
+        return {"status": "error", "message": f"Smart prediction failed: {str(e)}", "traceback": traceback.format_exc()}
+
+
 @mcp.custom_route("/health", methods=["GET"])
 async def health(request):
     """Health check for Cloud Run / load balancers."""
