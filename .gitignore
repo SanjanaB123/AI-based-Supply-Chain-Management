@@ -50,6 +50,8 @@ venv/
 gcp-key.json
 data/
 config/
+!backend/config/
+!backend/config/**
 logs/
 plugins/
 gcp-key.json

@@ -1,0 +1,14 @@
+{
+  "agents": [
+    {
+      "name": "inventory",
+      "tools": ["summarize_inventory", "get_product_at_store", "check_restocking_needs"],
+      "prompt_file": "prompts/inventory.txt"
+    },
+    {
+      "name": "predictive",
+      "tools": ["get_product_at_store", "predict_demand"],
+      "prompt_file": "prompts/predictive.txt"
+    }
+  ]
+}

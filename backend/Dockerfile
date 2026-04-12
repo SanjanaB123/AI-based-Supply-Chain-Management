@@ -20,8 +20,8 @@ COPY clerk_auth.py .
 COPY training/ ./training/
 COPY config/ ./config/
 
-# Train SetFit classifier at build time — model saved to config/inventory_query_classifier
-RUN python training/train_router.py
+# Pre-trained SetFit model is already in config/inventory_query_classifier
+# No need to train at build time — saves ~20 minutes
 
 # Run as non-root user
 RUN adduser --disabled-password --no-create-home appuser
