@@ -12,6 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py .
 COPY routes_inventory.py .
 COPY routes_chat.py .
+COPY routes_gemini_chat.py .
+COPY routes_email.py .
 COPY models.py .
 COPY database.py .
 COPY clerk_auth.py .
