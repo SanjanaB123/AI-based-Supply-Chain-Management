@@ -19,7 +19,7 @@
 This document describes the deployment of our Airflow-based data pipeline from a local Docker Compose setup to Google Cloud Platform (GCP) using Cloud Run, Terraform, and GitHub Actions.
 
 **Project:** AI-based Supply Chain Management (MLOps)
-**GCP Project ID:** `mlops-project-488302`
+**GCP Project ID:** `stratos-prod-493117`
 **GCP Region:** `us-central1`
 **Deployment Service:** Cloud Run
 **Infrastructure Automation:** Terraform
@@ -136,7 +136,7 @@ Inference (future: API on Cloud Run)
                                   v
 +-------------------------------------------------------------------+
 |                        GCP PROJECT                                 |
-|                   (mlops-project-488302)                           |
+|                   (stratos-prod-493117)                           |
 |                                                                    |
 |  +-------------------------------------------------------------+  |
 |  |                   CLOUD RUN SERVICES                         |  |
@@ -360,7 +360,7 @@ Manual steps to prepare GCP:
 2. **Set up GCP**
    ```bash
    gcloud auth login
-   gcloud config set project mlops-project-488302
+   gcloud config set project stratos-prod-493117
 
    # Enable required APIs
    gcloud services enable \
@@ -373,7 +373,7 @@ Manual steps to prepare GCP:
      servicenetworking.googleapis.com
 
    # Create Terraform state bucket
-   gsutil mb -l us-central1 gs://mlops-project-488302-tfstate
+   gsutil mb -l us-central1 gs://stratos-prod-493117-tfstate
    ```
 
 3. **Add GitHub secrets**
