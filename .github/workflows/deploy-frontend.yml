@@ -1,0 +1,122 @@
+name: Deploy Independent Frontend
+
+on:
+  push:
+    branches: [main, rohit]
+    paths:
+      - "frontend/**"
+      - "terraform/frontend/**"
+      - "terraform/modules/**"
+      - ".github/workflows/deploy-frontend.yml"
+  workflow_dispatch:
+
+env:
+  GCP_REGION: us-central1
+  ENVIRONMENT: prod
+  AR_REPO: airflow-images-prod
+  IMAGE_NAME: frontend
+
+jobs:
+  # ── JOB 1: Validation (Lint & Typecheck) ──────────────────────
+  validate:
+    name: Validate Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm install --include=dev
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+  # ── JOB 2: Build & Push ───────────────────────────────────────
+  build-and-push:
+    name: Build and Push Docker Image
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.GCP_SA_KEY }}"
+
+      - name: Set Project Infrastructure Info
+        run: |
+          PROJECT_ID=$(echo '${{ secrets.GCP_SA_KEY }}' | jq -r .project_id)
+          echo "GCP_PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and Push Image
+        run: |
+          IMAGE_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          docker build -t $IMAGE_TAG -t "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:latest" frontend/
+          docker push $IMAGE_TAG
+          docker push "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:latest"
+
+  # ── JOB 3: Infrastructure ─────────────────────────────────────
+  terraform:
+    name: Run Terraform Apply
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.GCP_SA_KEY }}"
+
+      - name: Set Project Infrastructure Info
+        run: |
+          PROJECT_ID=$(echo '${{ secrets.GCP_SA_KEY }}' | jq -r .project_id)
+          echo "GCP_PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+          echo "TF_STATE_BUCKET=${PROJECT_ID}-tfstate" >> $GITHUB_ENV
+
+      - name: Ensure State Bucket Exists
+        run: |
+          gsutil mb -p ${{ env.GCP_PROJECT_ID }} -l ${{ env.GCP_REGION }} gs://${{ env.TF_STATE_BUCKET }} || true
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+
+      - name: Terraform Init
+        working-directory: terraform/frontend
+        run: |
+          terraform init -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" -backend-config="prefix=frontend"
+
+      - name: Terraform Apply
+        working-directory: terraform/frontend
+        run: |
+          terraform apply -auto-approve \
+            -var="project_id=${{ env.GCP_PROJECT_ID }}" \
+            -var="tfstate_bucket=${{ env.TF_STATE_BUCKET }}" \
+            -var="region=${{ env.GCP_REGION }}" \
+            -var="environment=${{ env.ENVIRONMENT }}" \
+            -var="frontend_image_tag=${{ github.sha }}" \
+            -var="clerk_publishable_key=${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}"

@@ -1,0 +1,11 @@
+vendor_id,name,category,region,lead_time_days,min_order_qty,price_per_unit,rating,contact_email
+VCC1FE9,FreshCo Distributors,Produce,Northeast,1,200,1.59,4.5,freshco@supplier.com
+VEC0BD6,Pacific Beverages Inc.,Beverages,West,6,250,1.08,3.5,pacific@supplier.com
+V3AFD96,Heartland Snacks Co.,Snacks,Midwest,4,500,2.77,4.2,heartland@supplier.com
+VD5A612,Southern Dairy Farms,Dairy,Southeast,2,250,2.37,4.0,southern@supplier.com
+V548CAE,Arctic Frozen Supply,Frozen Foods,Northeast,8,500,4.56,3.6,arctic@supplier.com
+V9CD9CF,CleanHome Products LLC,Household,Southwest,8,50,6.19,4.0,cleanhome@supplier.com
+V463E1C,GlowUp Personal Care,Personal Care,West,5,100,3.41,4.7,glowup@supplier.com
+V54EDAD,Golden Grain Bakery,Bakery,Midwest,2,500,1.65,4.2,golden@supplier.com
+V4FE912,Prime Cuts Meats,Meat,Southeast,2,100,6.23,4.0,prime@supplier.com
+V9D4201,Pantry Staples Wholesale,Canned Goods,Southwest,12,50,0.9,4.0,pantry@supplier.com

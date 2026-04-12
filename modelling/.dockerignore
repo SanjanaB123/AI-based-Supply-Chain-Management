@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.git/
+.github/
+data/
+optuna_studies.db
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+README.md
