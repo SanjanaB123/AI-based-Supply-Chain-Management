@@ -116,6 +116,31 @@ module "airflow_scheduler" {
   secrets = local.common_secrets
 }
 
+module "airflow_dag_processor" {
+  source      = "../modules/cloud-run-service"
+  project_id  = var.project_id
+  region      = var.region
+  name        = "airflow-dag-processor-${var.environment}"
+  image       = local.airflow_image
+  container_port = 8080
+
+  service_account_email       = module.airflow_iam.email
+  vpc_connector_id            = data.terraform_remote_state.foundation.outputs.vpc_connector_id
+  db_instance_connection_name = data.terraform_remote_state.foundation.outputs.db_instance_connection_name
+
+  command = ["/opt/airflow/entrypoint.sh"]
+  args    = ["dag-processor"]
+
+  memory   = "2Gi"
+  cpu      = "1"
+  cpu_idle = false
+
+  env_vars = concat(local.common_env, [
+    { name = "AIRFLOW__CORE__EXECUTION_API_SERVER_URL", value = "${module.airflow_webserver.uri}/execution/" }
+  ])
+  secrets = local.common_secrets
+}
+
 module "airflow_init" {
   source      = "../modules/cloud-run-job"
   project_id  = var.project_id
