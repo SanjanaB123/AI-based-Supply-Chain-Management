@@ -10,7 +10,7 @@ resource "google_cloud_run_v2_service" "default" {
       for_each = var.vpc_connector_id != null && var.vpc_connector_id != "" ? [1] : []
       content {
         connector = var.vpc_connector_id
-        egress    = "ALL_TRAFFIC"
+        egress    = "PRIVATE_RANGES_ONLY"
       }
     }
 
