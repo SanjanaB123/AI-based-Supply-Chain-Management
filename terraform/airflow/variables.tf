@@ -14,20 +14,9 @@ variable "tfstate_bucket" {
   description = "The GCS bucket name for Terraform state"
 }
 
-variable "airflow_image_tag" {
-  type    = string
-  default = "latest"
-}
-
-variable "gcs_bucket_name" {
-  type    = string
-  default = "supply-chain-pipeline"
-}
-
-variable "github_repo" {
-  type    = string
-  default = "SanjanaB123/AI-based-Supply-Chain-Management"
-}
+variable "airflow_image_tag" { type = string; default = "latest" }
+variable "gcs_bucket_name" { type = string; default = "supply-chain-pipeline" }
+variable "github_repo" { type = string; default = "SanjanaB123/AI-based-Supply-Chain-Management" }
 
 variable "airflow_admin_password" {
   type      = string
