@@ -1,23 +1,53 @@
-name: Deploy Independent Airflow
+name: Deploy Independent Frontend
 
 on:
   push:
     branches: [main, rohit]
     paths:
-      - "airflow/**"
-      - "terraform/airflow/**"
+      - "frontend/**"
+      - "terraform/frontend/**"
       - "terraform/modules/**"
-      - ".github/workflows/deploy-airflow.yml"
+      - ".github/workflows/deploy-frontend.yml"
   workflow_dispatch:
 
 env:
   GCP_REGION: us-central1
   ENVIRONMENT: prod
   AR_REPO: airflow-images-prod
-  IMAGE_NAME: airflow
+  IMAGE_NAME: frontend
 
 jobs:
+  # ── JOB 1: Validation (Lint & Typecheck) ──────────────────────
+  validate:
+    name: Validate Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm install --include=dev
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+  # ── JOB 2: Build & Push ───────────────────────────────────────
   build-and-push:
+    name: Build and Push Docker Image
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -39,14 +69,28 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
+      - name: Get Backend URL
+        id: backend_url
+        run: |
+          BACKEND_URL=$(gcloud run services describe backend-${{ env.ENVIRONMENT }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --region=${{ env.GCP_REGION }} \
+            --format="value(status.url)")
+          echo "VITE_API_BASE_URL=$BACKEND_URL" >> $GITHUB_ENV
+
       - name: Build and Push Image
         run: |
           IMAGE_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          docker build -t $IMAGE_TAG -t "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:latest" airflow/
+          docker build \
+            --build-arg VITE_API_BASE_URL="${{ env.VITE_API_BASE_URL }}" \
+            --build-arg VITE_CLERK_PUBLISHABLE_KEY="${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}" \
+            -t $IMAGE_TAG -t "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:latest" frontend/
           docker push $IMAGE_TAG
           docker push "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:latest"
 
+  # ── JOB 3: Infrastructure ─────────────────────────────────────
   terraform:
+    name: Run Terraform Apply
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
@@ -74,40 +118,17 @@ jobs:
           terraform_version: "1.5.7"
 
       - name: Terraform Init
-        working-directory: terraform/airflow
+        working-directory: terraform/frontend
         run: |
-          terraform init -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" -backend-config="prefix=airflow"
+          terraform init -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" -backend-config="prefix=frontend"
 
-      - name: Terraform Apply (init job only)
-        working-directory: terraform/airflow
-        run: |
-          terraform apply -auto-approve \
-            -target=module.airflow_iam \
-            -target=module.airflow_init \
-            -var="project_id=${{ env.GCP_PROJECT_ID }}" \
-            -var="tfstate_bucket=${{ env.TF_STATE_BUCKET }}" \
-            -var="region=${{ env.GCP_REGION }}" \
-            -var="environment=${{ env.ENVIRONMENT }}" \
-            -var="airflow_image_tag=${{ github.sha }}" \
-            -var="gcs_bucket_name=supply-chain-pipeline" \
-            -var="github_repo=SanjanaB123/AI-based-Supply-Chain-Management" \
-            -var="airflow_admin_password=${{ secrets.TF_VAR_AIRFLOW_ADMIN_PASSWORD }}"
-
-      - name: Run Airflow DB init job
-        run: |
-          gcloud run jobs execute airflow-init-prod \
-            --region ${{ env.GCP_REGION }} \
-            --wait
-
-      - name: Terraform Apply (webserver and scheduler)
-        working-directory: terraform/airflow
+      - name: Terraform Apply
+        working-directory: terraform/frontend
         run: |
           terraform apply -auto-approve \
             -var="project_id=${{ env.GCP_PROJECT_ID }}" \
             -var="tfstate_bucket=${{ env.TF_STATE_BUCKET }}" \
             -var="region=${{ env.GCP_REGION }}" \
             -var="environment=${{ env.ENVIRONMENT }}" \
-            -var="airflow_image_tag=${{ github.sha }}" \
-            -var="gcs_bucket_name=supply-chain-pipeline" \
-            -var="github_repo=SanjanaB123/AI-based-Supply-Chain-Management" \
-            -var="airflow_admin_password=${{ secrets.TF_VAR_AIRFLOW_ADMIN_PASSWORD }}"
+            -var="frontend_image_tag=${{ github.sha }}" \
+            -var="clerk_publishable_key=${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}"

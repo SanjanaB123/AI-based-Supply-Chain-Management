@@ -1,20 +1,20 @@
-name: Deploy Independent Airflow
+name: Deploy Independent MCP
 
 on:
   push:
     branches: [main, rohit]
     paths:
-      - "airflow/**"
-      - "terraform/airflow/**"
+      - "mcp/**"
+      - "terraform/mcp/**"
       - "terraform/modules/**"
-      - ".github/workflows/deploy-airflow.yml"
+      - ".github/workflows/deploy-mcp.yml"
   workflow_dispatch:
 
 env:
   GCP_REGION: us-central1
   ENVIRONMENT: prod
   AR_REPO: airflow-images-prod
-  IMAGE_NAME: airflow
+  IMAGE_NAME: mcp
 
 jobs:
   build-and-push:
@@ -42,7 +42,7 @@ jobs:
       - name: Build and Push Image
         run: |
           IMAGE_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          docker build -t $IMAGE_TAG -t "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:latest" airflow/
+          docker build -t $IMAGE_TAG -t "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:latest" mcp/
           docker push $IMAGE_TAG
           docker push "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:latest"
 
@@ -74,40 +74,18 @@ jobs:
           terraform_version: "1.5.7"
 
       - name: Terraform Init
-        working-directory: terraform/airflow
+        working-directory: terraform/mcp
         run: |
-          terraform init -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" -backend-config="prefix=airflow"
+          terraform init -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" -backend-config="prefix=mcp"
 
-      - name: Terraform Apply (init job only)
-        working-directory: terraform/airflow
-        run: |
-          terraform apply -auto-approve \
-            -target=module.airflow_iam \
-            -target=module.airflow_init \
-            -var="project_id=${{ env.GCP_PROJECT_ID }}" \
-            -var="tfstate_bucket=${{ env.TF_STATE_BUCKET }}" \
-            -var="region=${{ env.GCP_REGION }}" \
-            -var="environment=${{ env.ENVIRONMENT }}" \
-            -var="airflow_image_tag=${{ github.sha }}" \
-            -var="gcs_bucket_name=supply-chain-pipeline" \
-            -var="github_repo=SanjanaB123/AI-based-Supply-Chain-Management" \
-            -var="airflow_admin_password=${{ secrets.TF_VAR_AIRFLOW_ADMIN_PASSWORD }}"
-
-      - name: Run Airflow DB init job
-        run: |
-          gcloud run jobs execute airflow-init-prod \
-            --region ${{ env.GCP_REGION }} \
-            --wait
-
-      - name: Terraform Apply (webserver and scheduler)
-        working-directory: terraform/airflow
+      - name: Terraform Apply
+        working-directory: terraform/mcp
         run: |
           terraform apply -auto-approve \
             -var="project_id=${{ env.GCP_PROJECT_ID }}" \
             -var="tfstate_bucket=${{ env.TF_STATE_BUCKET }}" \
             -var="region=${{ env.GCP_REGION }}" \
             -var="environment=${{ env.ENVIRONMENT }}" \
-            -var="airflow_image_tag=${{ github.sha }}" \
-            -var="gcs_bucket_name=supply-chain-pipeline" \
-            -var="github_repo=SanjanaB123/AI-based-Supply-Chain-Management" \
-            -var="airflow_admin_password=${{ secrets.TF_VAR_AIRFLOW_ADMIN_PASSWORD }}"
+            -var="mcp_image_tag=${{ github.sha }}" \
+            -var="mlflow_tracking_uri=${{ secrets.MLFLOW_TRACKING_URI }}" \
+            -var="gcs_bucket_name=${{ secrets.GCS_BUCKET_NAME }}"

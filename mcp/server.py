@@ -28,7 +28,7 @@ mcp = FastMCP("inventory_server", host="0.0.0.0", port=PORT)
 
 # MongoDB connection setup
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-client = MongoClient(MONGO_URI)
+client = MongoClient(MONGO_URI, maxPoolSize=10, serverSelectionTimeoutMS=5000)
 db = client["inventory_forecasting"]
 collection = db["inventory_snapshot"]
 
