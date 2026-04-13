@@ -120,8 +120,10 @@ def get_product_at_store(product_id: str, store_id: str) -> dict:
         store_id: The unique identifier for the store.
     """
     try:
+        product_id = product_id.upper()
+        store_id = store_id.upper()
         item = collection.find_one({"Product ID": product_id, "Store ID": store_id})
-        
+
         if not item:
             return {"status": "error", "message": f"No inventory found for Product '{product_id}' at Store '{store_id}'"}
             
@@ -142,10 +144,11 @@ def check_restocking_needs(store_id: str, threshold: int = 10) -> dict:
         threshold: The stock level below which to trigger a restock alert (default: 10).
     """
     try:
+        store_id = store_id.upper()
         items_to_restock = list(collection.find(
             {"Store ID": store_id, "Current Stock": {"$lt": threshold}}
         ))
-        
+
         if not items_to_restock:
             return {
                 "status": "success",
@@ -376,6 +379,8 @@ def smart_predict_demand(store_id: str, product_id: str, target_date: str) -> di
     Only needs store_id (e.g. S001), product_id (e.g. P0001), and target_date (YYYY-MM-DD).
     """
     try:
+        store_id = store_id.upper()
+        product_id = product_id.upper()
         retail_col = db["retail_snapshot"]
         inv_col = db["inventory_snapshot"]
 

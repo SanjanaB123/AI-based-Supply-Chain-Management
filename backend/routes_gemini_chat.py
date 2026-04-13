@@ -178,8 +178,10 @@ TOOLS = [
 
 
 def _exec_check_inventory(store_id: str, product_id: Optional[str] = None) -> dict:
+    store_id = store_id.upper()
     query = {"Store ID": store_id}
     if product_id:
+        product_id = product_id.upper()
         query["Product ID"] = product_id
     projection = {"_id": 0, "Product ID": 1, "Category": 1, "Current Stock": 1}
     docs = list(_inventory_col().find(query, projection))
@@ -190,6 +192,7 @@ def _exec_check_inventory(store_id: str, product_id: Optional[str] = None) -> di
 
 
 def _exec_get_low_stock_items(store_id: str, threshold: int = 50) -> dict:
+    store_id = store_id.upper()
     docs = list(_inventory_col().find(
         {"Store ID": store_id, "Current Stock": {"$lt": threshold}},
         {"_id": 0, "Product ID": 1, "Category": 1, "Current Stock": 1},
@@ -199,6 +202,7 @@ def _exec_get_low_stock_items(store_id: str, threshold: int = 50) -> dict:
 
 
 def _exec_get_reorder_suggestions(store_id: str) -> dict:
+    store_id = store_id.upper()
     low_items = list(_inventory_col().find(
         {"Store ID": store_id, "Current Stock": {"$lt": 100}},
         {"_id": 0, "Product ID": 1, "Category": 1, "Current Stock": 1, "Lead Time Days": 1},
@@ -284,6 +288,7 @@ _current_user_email: Optional[str] = None
 
 
 def _exec_place_order(store_id: str, items: List[Dict]) -> dict:
+    store_id = store_id.upper()
     if not _inventory_col().find_one({"Store ID": store_id}):
         return {"error": "Store %s not found" % store_id}
 
@@ -292,7 +297,7 @@ def _exec_place_order(store_id: str, items: List[Dict]) -> dict:
     total_units = 0
 
     for item in items:
-        pid = item["product_id"]
+        pid = item["product_id"].upper()
         qty = item["quantity"]
         product = _inventory_col().find_one({"Store ID": store_id, "Product ID": pid}, {"_id": 0})
         if not product:

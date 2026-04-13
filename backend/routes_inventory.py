@@ -64,6 +64,7 @@ def refresh_data():
 
 
 def _filter_store(store_id: str) -> pd.DataFrame:
+    store_id = store_id.upper()
     if store_id not in VALID_STORES:
         raise HTTPException(status_code=404, detail=f"Store '{store_id}' not found. Valid stores: {VALID_STORES}")
     return df[df["Store ID"] == store_id].copy()
