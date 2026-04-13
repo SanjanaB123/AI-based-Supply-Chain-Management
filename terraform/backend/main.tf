@@ -32,6 +32,17 @@ data "terraform_remote_state" "mcp" {
 }
 
 # ── 2. IAM ─────────────────────────────────────────────────────
+resource "google_secret_manager_secret" "anthropic_api_key" {
+  secret_id = "anthropic-api-key-${var.environment}"
+  project   = var.project_id
+  replication { auto {} }
+}
+
+resource "google_secret_manager_secret_version" "anthropic_api_key" {
+  secret      = google_secret_manager_secret.anthropic_api_key.id
+  secret_data = var.anthropic_api_key
+}
+
 module "backend_iam" {
   source       = "../modules/iam-service-account"
   project_id   = var.project_id
@@ -69,7 +80,8 @@ module "backend" {
   ]
   
   secrets = [
-    { name = "MONGO_URI", secret_id = data.terraform_remote_state.foundation.outputs.mongo_uri_secret_id }
+    { name = "MONGO_URI",          secret_id = data.terraform_remote_state.foundation.outputs.mongo_uri_secret_id },
+    { name = "ANTHROPIC_API_KEY",  secret_id = google_secret_manager_secret.anthropic_api_key.secret_id }
   ]
   
   is_public = true

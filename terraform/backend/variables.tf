@@ -22,3 +22,9 @@ variable "clerk_jwks_url" {
   type        = string
   description = "The JWKS URL from Clerk for decoding JWTs"
 }
+
+variable "anthropic_api_key" {
+  type        = string
+  description = "Anthropic API key for the backend Claude integration"
+  sensitive   = true
+}

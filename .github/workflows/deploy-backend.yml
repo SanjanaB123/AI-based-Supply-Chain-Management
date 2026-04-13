@@ -87,4 +87,5 @@ jobs:
             -var="region=${{ env.GCP_REGION }}" \
             -var="environment=${{ env.ENVIRONMENT }}" \
             -var="clerk_jwks_url=${{ secrets.CLERK_JWKS_URL }}" \
+            -var="anthropic_api_key=${{ secrets.ANTHROPIC_API_KEY }}" \
             -var="backend_image_tag=${{ github.sha }}"
