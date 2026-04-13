@@ -139,16 +139,26 @@ def version_with_dvc(features_path: str, **context) -> str:
     github_token  = os.getenv("GITHUB_TOKEN", "").strip()
     github_repo   = os.getenv("GITHUB_REPO", "SanjanaB123/AI-based-Supply-Chain-Management").strip()
 
+    log.info("=== version_with_dvc START ===")
+    log.info("features_path=%s, bucket=%s, repo=%s, token_set=%s",
+             features_path, bucket_name, github_repo, bool(github_token))
+    log.info("features file exists: %s", Path(features_path).exists())
+    log.info("dvc config exists: %s", dvc_config.exists())
+
     def run_cmd(cmd: list[str], env_extra: dict = None) -> str:
+        log.info("Running command: %s", ' '.join(cmd))
         env = os.environ.copy()
         env["PATH"] = "/home/airflow/.local/bin:/usr/local/bin:/usr/bin:/bin"
         if env_extra:
             env.update(env_extra)
         result = subprocess.run(cmd, cwd=str(dvc_root), text=True, capture_output=True, env=env)
         if result.returncode != 0:
+            log.error("Command FAILED: %s\nReturn code: %d\nSTDOUT:\n%s\nSTDERR:\n%s",
+                      ' '.join(cmd), result.returncode, result.stdout, result.stderr)
             raise AirflowException(
                 f"Command failed: {' '.join(cmd)}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
             )
+        log.info("Command succeeded: %s", ' '.join(cmd))
         return result.stdout.strip()
 
     if not dvc_config.exists():
