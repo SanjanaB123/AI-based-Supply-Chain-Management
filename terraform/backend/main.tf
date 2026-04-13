@@ -35,7 +35,9 @@ data "terraform_remote_state" "mcp" {
 resource "google_secret_manager_secret" "anthropic_api_key" {
   secret_id = "anthropic-api-key-${var.environment}"
   project   = var.project_id
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 
 resource "google_secret_manager_secret_version" "anthropic_api_key" {
