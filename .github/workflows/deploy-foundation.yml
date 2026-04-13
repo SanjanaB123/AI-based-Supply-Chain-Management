@@ -50,6 +50,7 @@ jobs:
         run: |
           terraform apply -auto-approve \
             -var="project_id=${{ env.GCP_PROJECT_ID }}" \
+            -var="tfstate_bucket=${{ env.TF_STATE_BUCKET }}" \
             -var="region=${{ env.GCP_REGION }}" \
             -var="environment=${{ env.ENVIRONMENT }}" \
             -var="db_password=${{ secrets.TF_VAR_DB_PASSWORD }}" \
