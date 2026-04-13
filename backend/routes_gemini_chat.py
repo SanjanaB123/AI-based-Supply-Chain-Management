@@ -7,6 +7,7 @@ Uses Claude Haiku via Anthropic SDK with tool calling.
 import os
 import json
 import logging
+import asyncio
 import smtplib
 import uuid
 from datetime import datetime, timezone
@@ -440,18 +441,25 @@ async def gemini_chat(request: GeminiChatRequest, user: ClerkUser = Depends(get_
     # Add user message
     messages.append({"role": "user", "content": request.message})
 
-    # Call Claude with tools
-    try:
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=1024,
-            system=SYSTEM_PROMPT,
-            tools=TOOLS,
-            messages=messages,
-        )
-    except Exception as e:
-        log.error("Claude API error: %s", e)
-        raise HTTPException(status_code=502, detail="AI service error: %s" % str(e))
+    # Call Claude with tools (retry up to 3x on 529 overloaded)
+    for attempt in range(3):
+        try:
+            response = client.messages.create(
+                model=MODEL,
+                max_tokens=1024,
+                system=SYSTEM_PROMPT,
+                tools=TOOLS,
+                messages=messages,
+            )
+            break
+        except Exception as e:
+            if attempt < 2 and ("529" in str(e) or "overloaded" in str(e).lower()):
+                wait = 2 ** attempt
+                log.warning("Claude overloaded, retrying in %ds (%d/3)", wait, attempt + 1)
+                await asyncio.sleep(wait)
+            else:
+                log.error("Claude API error: %s", e)
+                raise HTTPException(status_code=502, detail="AI service error: %s" % str(e))
 
     # Handle tool calls in a loop
     function_calls_made = []
@@ -491,17 +499,24 @@ async def gemini_chat(request: GeminiChatRequest, user: ClerkUser = Depends(get_
         # Send tool results back
         messages.append({"role": "user", "content": tool_results})
 
-        try:
-            response = client.messages.create(
-                model=MODEL,
-                max_tokens=1024,
-                system=SYSTEM_PROMPT,
-                tools=TOOLS,
-                messages=messages,
-            )
-        except Exception as e:
-            log.error("Claude error after tool response: %s", e)
-            raise HTTPException(status_code=502, detail="AI service error: %s" % str(e))
+        for attempt in range(3):
+            try:
+                response = client.messages.create(
+                    model=MODEL,
+                    max_tokens=1024,
+                    system=SYSTEM_PROMPT,
+                    tools=TOOLS,
+                    messages=messages,
+                )
+                break
+            except Exception as e:
+                if attempt < 2 and ("529" in str(e) or "overloaded" in str(e).lower()):
+                    wait = 2 ** attempt
+                    log.warning("Claude overloaded, retrying in %ds (%d/3)", wait, attempt + 1)
+                    await asyncio.sleep(wait)
+                else:
+                    log.error("Claude error after tool response: %s", e)
+                    raise HTTPException(status_code=502, detail="AI service error: %s" % str(e))
 
     # Extract final text
     final_text = ""
