@@ -97,7 +97,7 @@ module "airflow_scheduler" {
   region      = var.region
   name        = "airflow-scheduler-${var.environment}"
   image       = local.airflow_image
-  container_port = 8974
+  container_port = 8080
   
   service_account_email       = module.airflow_iam.email
   vpc_connector_id            = data.terraform_remote_state.foundation.outputs.vpc_connector_id
@@ -105,9 +105,9 @@ module "airflow_scheduler" {
   
   command = ["/opt/airflow/entrypoint.sh"]
   args    = ["scheduler"]
-  
-  memory = "2Gi"
-  cpu    = "1"
+
+  memory = "8Gi"
+  cpu    = "2"
   cpu_idle = false
 
   env_vars = concat(local.common_env, [
