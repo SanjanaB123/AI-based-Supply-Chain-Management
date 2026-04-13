@@ -69,10 +69,22 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
+      - name: Get Backend URL
+        id: backend_url
+        run: |
+          BACKEND_URL=$(gcloud run services describe backend-${{ env.ENVIRONMENT }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --region=${{ env.GCP_REGION }} \
+            --format="value(status.url)")
+          echo "VITE_API_URL=$BACKEND_URL" >> $GITHUB_ENV
+
       - name: Build and Push Image
         run: |
           IMAGE_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          docker build -t $IMAGE_TAG -t "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:latest" frontend/
+          docker build \
+            --build-arg VITE_API_URL="${{ env.VITE_API_URL }}" \
+            --build-arg VITE_CLERK_PUBLISHABLE_KEY="${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}" \
+            -t $IMAGE_TAG -t "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:latest" frontend/
           docker push $IMAGE_TAG
           docker push "${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:latest"
 
