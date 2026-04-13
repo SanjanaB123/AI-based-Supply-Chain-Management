@@ -52,7 +52,9 @@ async def get_current_user(
     token = credentials.credentials
 
     try:
-        signing_key = _get_jwks_client().get_signing_key_from_jwt(token)
+        jwks_client = _get_jwks_client()
+        log.info(f"Fetching signing key from JWKS for token verification")
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
         payload = jwt.decode(
             token,
             signing_key.key,
@@ -73,10 +75,11 @@ async def get_current_user(
     except HTTPException:
         raise
     except Exception as e:
-        log.error(f"Unexpected error during token verification: {e}")
+        log.error(f"JWKS/Auth error (type={type(e).__name__}): {e}")
+        log.error(f"CLERK_JWKS_URL is: {os.getenv('CLERK_JWKS_URL', 'NOT SET')}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Authentication service error",
+            detail=f"Authentication service error: {type(e).__name__}",
         )
 
     user_id = payload.get("sub")
