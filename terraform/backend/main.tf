@@ -64,7 +64,8 @@ module "backend" {
   env_vars = [
     { name = "MCP_SERVER_URL", value = data.terraform_remote_state.mcp.outputs.uri },
     { name = "MCP_TRIGGER_RESTART", value = data.terraform_remote_state.mcp.outputs.latest_revision },
-    { name = "ENVIRONMENT", value = var.environment }
+    { name = "ENVIRONMENT", value = var.environment },
+    { name = "CLERK_JWKS_URL", value = var.clerk_jwks_url }
   ]
   
   secrets = [

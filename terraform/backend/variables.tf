@@ -17,3 +17,8 @@ variable "backend_image_tag" {
   type    = string
   default = "latest"
 }
+
+variable "clerk_jwks_url" {
+  type        = string
+  description = "The JWKS URL from Clerk for decoding JWTs"
+}
