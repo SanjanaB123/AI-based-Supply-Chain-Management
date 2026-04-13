@@ -33,6 +33,7 @@ module "mcp_iam" {
     "roles/logging.logWriter",
     "roles/artifactregistry.reader",
     "roles/secretmanager.secretAccessor",
+    "roles/storage.objectViewer",
   ]
 }
 
@@ -53,7 +54,8 @@ module "mcp_server" {
   
   env_vars = [
     { name = "MLFLOW_TRACKING_URI", value = var.mlflow_tracking_uri },
-    { name = "ENVIRONMENT", value = var.environment }
+    { name = "ENVIRONMENT",         value = var.environment },
+    { name = "GCS_BUCKET_NAME",     value = var.gcs_bucket_name }
   ]
 
   secrets = [

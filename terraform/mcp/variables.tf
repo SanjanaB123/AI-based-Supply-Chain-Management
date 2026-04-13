@@ -22,3 +22,8 @@ variable "mlflow_tracking_uri" {
   type    = string
   default = ""
 }
+
+variable "gcs_bucket_name" {
+  type        = string
+  description = "GCS bucket name for model artifacts"
+}

@@ -87,4 +87,5 @@ jobs:
             -var="region=${{ env.GCP_REGION }}" \
             -var="environment=${{ env.ENVIRONMENT }}" \
             -var="mcp_image_tag=${{ github.sha }}" \
-            -var="mlflow_tracking_uri=${{ secrets.MLFLOW_TRACKING_URI }}"
+            -var="mlflow_tracking_uri=${{ secrets.MLFLOW_TRACKING_URI }}" \
+            -var="gcs_bucket_name=${{ secrets.GCS_BUCKET_NAME }}"
