@@ -32,6 +32,7 @@ module "mcp_iam" {
   roles = [
     "roles/logging.logWriter",
     "roles/artifactregistry.reader",
+    "roles/secretmanager.secretAccessor",
   ]
 }
 
@@ -54,7 +55,11 @@ module "mcp_server" {
     { name = "MLFLOW_TRACKING_URI", value = var.mlflow_tracking_uri },
     { name = "ENVIRONMENT", value = var.environment }
   ]
-  
+
+  secrets = [
+    { name = "MONGO_URI", secret_id = data.terraform_remote_state.foundation.outputs.mongo_uri_secret_id }
+  ]
+
   is_public = true
 }
 
