@@ -70,6 +70,14 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication token",
         )
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Unexpected error during token verification: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication service error",
+        )
 
     user_id = payload.get("sub")
     if not user_id:

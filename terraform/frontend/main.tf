@@ -56,7 +56,7 @@ module "frontend" {
   vpc_connector_id      = data.terraform_remote_state.foundation.outputs.vpc_connector_id
   
   env_vars = [
-    { name = "VITE_API_URL", value = data.terraform_remote_state.backend.outputs.uri },
+    { name = "VITE_API_BASE_URL", value = data.terraform_remote_state.backend.outputs.uri },
     { name = "VITE_CLERK_PUBLISHABLE_KEY", value = var.clerk_publishable_key }
   ]
   
