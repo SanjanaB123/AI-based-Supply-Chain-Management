@@ -323,7 +323,7 @@ def supply_chain_pipeline():
         # Import and use the bias detection script
         sys.path.append(str(Path(__file__).parent.parent / "scripts"))
         from bias import generate_bias_report
-        
+
         outputs_dir = str(FEAT_DIR / "bias_outputs")
         report_path = generate_bias_report(
             features_path=features_path,
@@ -332,6 +332,31 @@ def supply_chain_pipeline():
         )
         log.info("Bias analysis completed. Report saved to %s", report_path)
         return report_path
+
+    def detect_drift(features_path: str, **context):
+        sys.path.append(str(Path(__file__).parent.parent / "scripts"))
+        from drift_detection import run_drift_detection
+
+        outputs_dir = str(FEAT_DIR / "drift_outputs")
+        drift_threshold = float(os.getenv("DRIFT_THRESHOLD", "0.3"))
+        report_path, drift_score, drift_detected = run_drift_detection(
+            features_path=features_path,
+            output_dir=outputs_dir,
+            drift_threshold=drift_threshold,
+        )
+        log.info(
+            "Drift detection complete — score=%.3f, detected=%s, report=%s",
+            drift_score, drift_detected, report_path,
+        )
+        return report_path
+
+    def trigger_retrain_on_drift(drift_report_path: str, **context):
+        sys.path.append(str(Path(__file__).parent.parent / "scripts"))
+        from trigger_retraining import trigger_retraining_if_drift
+
+        triggered = trigger_retraining_if_drift(drift_report_path)
+        log.info("Retraining triggered: %s", triggered)
+        return triggered
 
 
     schema_stats_task = PythonOperator(
@@ -385,14 +410,47 @@ def supply_chain_pipeline():
         op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
     )
 
-    # Parallelize: extract -> transform -> [schema_stats, anomaly_detect, bias_report]
-    #                                      -> validate -> dvc_version -> load (GCS upload)
-    #                                      -> anomaly_email_alert (on failure)
+    drift_detect_task = PythonOperator(
+        task_id="drift_detect",
+        python_callable=detect_drift,
+        op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
+    )
+
+    retrain_trigger_task = PythonOperator(
+        task_id="retrain_trigger",
+        python_callable=trigger_retrain_on_drift,
+        op_kwargs={"drift_report_path": "{{ ti.xcom_pull(task_ids='drift_detect') }}"},
+        # Never fail the DAG if the GitHub dispatch call fails
+        retries=0,
+    )
+
+    retrain_email_alert = EmailOperator(
+        task_id="retrain_email_alert",
+        to=EMAIL_RECIPIENTS,
+        subject="Supply Chain Pipeline - Retraining Triggered",
+        html_content="""
+        <h2>Model Retraining Triggered</h2>
+        <p>Data drift was detected in the supply chain feature pipeline and model retraining has been triggered automatically.</p>
+        <ul>
+            <li>Pipeline: {{ dag.dag_id }}</li>
+            <li>Execution Date: {{ ds }}</li>
+            <li>Drift Report: {{ ti.xcom_pull(task_ids='drift_detect') }}</li>
+        </ul>
+        <p>The ML pipeline (<code>ml_pipeline.yml</code>) has been dispatched on GitHub Actions to retrain and promote a new model if it performs better.</p>
+        """,
+        trigger_rule="none_failed_min_one_success",
+    )
+
+    # Parallelize: extract -> transform -> [schema_stats, anomaly_detect, bias_report, drift_detect]
+    #                                      -> validate -> dvc_version
+    #                                      -> anomaly_email_alert (on anomaly failure)
+    #              drift_detect -> retrain_trigger -> retrain_email_alert
     extract_task >> transform_task
-    transform_task >> [schema_stats_task, anomaly_detect_task, bias_report_task]
+    transform_task >> [schema_stats_task, anomaly_detect_task, bias_report_task, drift_detect_task]
     [schema_stats_task, anomaly_detect_task] >> validate_schema_task
     validate_schema_task >> dvc_version_task
     anomaly_detect_task >> anomaly_email_alert
+    drift_detect_task >> retrain_trigger_task >> retrain_email_alert
 
 
 dag = supply_chain_pipeline()
