@@ -1,4 +1,4 @@
-pandas==2.2.3
+pandas==3.0.1
 pymongo==4.16.0
 great-expectations==0.18.19
 apache-airflow-providers-smtp==2.4.2
@@ -8,9 +8,6 @@ google-cloud-storage
 google-cloud-secret-manager
 PyYAML==6.0.3
 python-dotenv==1.2.1
-scipy==1.17.1
-numpy==1.26.4
-scikit-learn==1.8.0
-matplotlib==3.9.2
-evidently>=0.4
-mlflow==2.22.0
+scipy
+evidently==0.4.33
+mlflow>=2.10.0

@@ -18,8 +18,7 @@ import traceback
 from pathlib import Path
 from typing import Tuple
 
-# BOOTSTRAP: Immediate stdout print to verify script was called and loaded
-print("BOOTSTRAP: drift_detection.py module initial load.")
+import pandas as pd
 
 log = logging.getLogger(__name__)
 
@@ -43,39 +42,35 @@ def _split_reference_current(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFra
     df = df.copy()
     df["as_of_date"] = pd.to_datetime(df["as_of_date"])
     df_sorted = df.sort_values("as_of_date")
-    
-    n = len(df_sorted)
-    if n < 2:
-        # Cannot split 1 row into 2 sets
-        return df_sorted, pd.DataFrame(columns=df_sorted.columns)
-
-    cutoff_idx = int(n * 0.8)
-    
-    # Ensure at least one row in current if n >= 2
-    if cutoff_idx == n:
-        cutoff_idx = n - 1
-    elif cutoff_idx == 0:
-        cutoff_idx = 1
-
+    cutoff_idx = int(len(df_sorted) * 0.8)
     reference = df_sorted.iloc[:cutoff_idx]
     current = df_sorted.iloc[cutoff_idx:]
     log.info(
         "Reference rows: %d (up to %s), Current rows: %d (from %s)",
         len(reference),
-        reference["as_of_date"].max().date() if not reference.empty else "N/A",
+        reference["as_of_date"].max().date(),
         len(current),
-        current["as_of_date"].min().date() if not current.empty else "N/A",
+        current["as_of_date"].min().date(),
     )
     return reference, current
 
 
 def _try_import_evidently():
     """Try multiple evidently import paths across versions."""
-    # evidently 0.4.x - 0.5.x — primary path
+    # evidently 0.4.x (pinned version) — primary path
     try:
         from evidently.report import Report
         from evidently.metric_preset import DataDriftPreset
-        log.info("Loaded evidently via evidently.report / evidently.metric_preset (0.4/0.5)")
+        log.info("Loaded evidently via evidently.report / evidently.metric_preset (0.4.x)")
+        return Report, DataDriftPreset
+    except ImportError:
+        pass
+
+    # evidently 0.5.x alternate
+    try:
+        from evidently import Report
+        from evidently.metric_preset import DataDriftPreset
+        log.info("Loaded evidently via evidently / evidently.metric_preset (0.5.x)")
         return Report, DataDriftPreset
     except ImportError:
         pass
@@ -95,13 +90,14 @@ def _try_import_evidently():
             [sys.executable, "-m", "pip", "show", "evidently"],
             capture_output=True, text=True
         )
-        log.error("evidently not found. pip show:\n%s", result.stdout or result.stderr)
+        log.error("evidently pip show:\n%s", result.stdout or result.stderr)
     except Exception:
         pass
 
     raise ImportError(
         "Could not import evidently Report/DataDriftPreset. "
-        "Check that evidently is installed in the Airflow environment."
+        "Check that evidently==0.4.33 is installed in the Docker image. "
+        "Run: pip show evidently  inside the container to verify."
     )
 
 
@@ -113,31 +109,18 @@ def run_drift_detection(
 ) -> Tuple[str, float, bool]:
     """
     Run Evidently AI drift detection on features.parquet.
+
+    Returns:
+        (report_path, drift_score, drift_detected)
     """
-    import pandas as pd
-    from typing import Tuple
-    import json
-    import traceback
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
     report_file = out_path / "drift_report.json"
 
     try:
         log.info("Loading features from %s", features_path)
-        
-        # Optimization: Only read required columns to save memory
-        load_cols = NUMERIC_FEATURE_COLS + ["as_of_date"]
-        try:
-            df = pd.read_parquet(features_path, columns=load_cols)
-            log.info("Memory optimization: Read only %d relevant columns", len(load_cols))
-        except Exception as e:
-            log.warning("Filtered read failed, falling back to full read: %s", e)
-            df = pd.read_parquet(features_path)
-        
-        # Diagnostic: Log memory usage
-        mem_mb = df.memory_usage(deep=True).sum() / (1024 * 1024)
-        print(f"DRIFT_DETECTION_MEMORY_USAGE: {mem_mb:.2f} MB")
-        log.info("Loaded %d rows. Memory depth: %.2f MB", len(df), mem_mb)
+        df = pd.read_parquet(features_path)
+        log.info("Loaded %d rows, %d columns. Columns: %s", len(df), len(df.columns), list(df.columns))
 
         available_cols = [c for c in NUMERIC_FEATURE_COLS if c in df.columns]
         log.info("Matched feature columns: %s", available_cols)
@@ -160,40 +143,17 @@ def run_drift_detection(
             cur_features = cur_features.sample(MAX_SAMPLE_ROWS, random_state=42)
             log.info("Sampled current to %d rows", MAX_SAMPLE_ROWS)
 
-        if ref_features.empty or cur_features.empty:
-            log.warning("Reference or Current dataset is empty after filtering — skipping drift detection.")
-            _write_no_drift_report(report_file, features_path, drift_threshold, reason="empty_dataset_split")
-            return str(report_file), 0.0, False
-
         log.info("Importing evidently...")
         Report, DataDriftPreset = _try_import_evidently()
 
-        log.info("Instantiating Evidently Report for %d features", len(available_cols))
-        # Handle both Metric and Preset style instantiation (defensive)
-        try:
-            report = Report(metrics=[DataDriftPreset()])
-            log.info("Report initialized with metrics=[DataDriftPreset()]")
-        except Exception:
-            report = Report(presets=[DataDriftPreset()])
-            log.info("Report initialized with presets=[DataDriftPreset()]")
-
-        log.info("Running report.run()...")
+        log.info("Running Evidently DataDriftPreset on %d features", len(available_cols))
+        report = Report(metrics=[DataDriftPreset()])
         report.run(reference_data=ref_features, current_data=cur_features)
 
         report_dict = report.as_dict()
-        log.info("Evidently report generated successfully. Parsing results...")
+        log.info("Evidently report generated successfully")
 
-        # Robust result extraction (structure changed in 0.6+)
-        drift_results = {}
-        for metric in report_dict.get("metrics", []):
-            if "DataDriftPreset" in metric.get("metric", "") or "DatasetDriftMetric" in metric.get("metric", ""):
-                drift_results = metric.get("result", {})
-                break
-        
-        # Fallback to direct check if loop didn't find it
-        if not drift_results:
-             drift_results = report_dict.get("metrics", [{}])[0].get("result", {})
-
+        drift_results = report_dict.get("metrics", [{}])[0].get("result", {})
         share_drifted = float(drift_results.get("share_of_drifted_columns", 0.0))
         n_drifted = drift_results.get("number_of_drifted_columns", 0)
         n_total = drift_results.get("number_of_columns", len(available_cols))
