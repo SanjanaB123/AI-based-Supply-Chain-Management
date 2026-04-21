@@ -19,7 +19,7 @@ import pendulum
 from airflow.sdk import dag
 from airflow.operators.python import PythonOperator
 from airflow.providers.smtp.operators.smtp import EmailOperator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 
 sys.path.insert(0, "/opt/airflow")
 from scripts.extract import extract
@@ -128,6 +128,31 @@ def bias_slicing_report(features_path: str, **context) -> str:
     )
     log.info("Bias analysis completed. Report saved to %s", report_path)
     return report_path
+
+
+def detect_drift(features_path: str, **context) -> str:
+    from scripts.drift_detection import run_drift_detection
+
+    features_path   = str(features_path).strip('"').strip("'")
+    drift_threshold = float(os.getenv("DRIFT_THRESHOLD", "0.3"))
+    report_path, drift_score, drift_detected = run_drift_detection(
+        features_path=features_path,
+        output_dir=str(FEAT_DIR / "drift_outputs"),
+        drift_threshold=drift_threshold,
+    )
+    log.info("Drift detection complete — score=%.3f, detected=%s", drift_score, drift_detected)
+    return report_path
+
+
+def trigger_retrain_on_drift(drift_report_path: str, **context) -> bool:
+    from scripts.trigger_retraining import trigger_retraining_if_drift
+
+    drift_report_path = str(drift_report_path).strip('"').strip("'")
+    triggered = trigger_retraining_if_drift(drift_report_path)
+    if not triggered:
+        raise AirflowSkipException("No drift detected — retraining not required.")
+    log.info("Retraining triggered successfully.")
+    return triggered
 
 
 def version_with_dvc(features_path: str, **context) -> str:
@@ -290,6 +315,36 @@ def supply_chain_pipeline():
         op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
     )
 
+    drift_detect_task = PythonOperator(
+        task_id="drift_detect",
+        python_callable=detect_drift,
+        op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
+    )
+
+    retrain_trigger_task = PythonOperator(
+        task_id="retrain_trigger",
+        python_callable=trigger_retrain_on_drift,
+        op_kwargs={"drift_report_path": "{{ ti.xcom_pull(task_ids='drift_detect') }}"},
+        retries=0,
+    )
+
+    retrain_email_alert = EmailOperator(
+        task_id="retrain_email_alert",
+        to=EMAIL_RECIPIENTS,
+        subject="Supply Chain Pipeline - Retraining Triggered",
+        html_content="""
+        <h2>Model Retraining Triggered</h2>
+        <p>Data drift detected — model retraining has been triggered automatically.</p>
+        <ul>
+            <li>Pipeline: {{ dag.dag_id }}</li>
+            <li>Execution Date: {{ ds }}</li>
+            <li>Drift Report: {{ ti.xcom_pull(task_ids='drift_detect') }}</li>
+        </ul>
+        <p>The ML pipeline has been dispatched on GitHub Actions to retrain and promote a new model.</p>
+        """,
+        trigger_rule="all_success",
+    )
+
     dvc_version_task = PythonOperator(
         task_id="version_with_dvc",
         python_callable=version_with_dvc,
@@ -312,13 +367,16 @@ def supply_chain_pipeline():
     #           ├── schema_stats ──┐
     #           ├── anomaly ───────┴── validate_schema ── dvc_version ── load
     #           │       └── email_alert (on failure only)
-    #           └── bias_report
+    #           ├── bias_report
+    #           └── drift_detect ── retrain_trigger ── retrain_email_alert
+    #                                  (skips if no drift)
     #
     extract_task >> transform_task
-    transform_task >> [schema_stats_task, anomaly_detect_task, bias_report_task]
+    transform_task >> [schema_stats_task, anomaly_detect_task, bias_report_task, drift_detect_task]
     [schema_stats_task, anomaly_detect_task] >> validate_schema_task
     validate_schema_task >> dvc_version_task >> load_task
     anomaly_detect_task >> anomaly_email_alert
+    drift_detect_task >> retrain_trigger_task >> retrain_email_alert
 
 
 dag = supply_chain_pipeline()
