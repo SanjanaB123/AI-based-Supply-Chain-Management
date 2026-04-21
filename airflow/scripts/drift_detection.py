@@ -57,37 +57,49 @@ def _split_reference_current(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFra
 
 def _try_import_evidently():
     """Try multiple evidently import paths across versions."""
-    # evidently >= 0.6
+    # evidently 0.4.x (pinned version) — primary path
     try:
         from evidently.report import Report
         from evidently.metric_preset import DataDriftPreset
-        log.info("Loaded evidently via evidently.report / evidently.metric_preset")
+        log.info("Loaded evidently via evidently.report / evidently.metric_preset (0.4.x)")
         return Report, DataDriftPreset
     except ImportError:
         pass
 
-    # evidently 0.4 / 0.5
+    # evidently 0.5.x alternate
     try:
         from evidently import Report
         from evidently.metric_preset import DataDriftPreset
-        log.info("Loaded evidently via evidently / evidently.metric_preset")
+        log.info("Loaded evidently via evidently / evidently.metric_preset (0.5.x)")
         return Report, DataDriftPreset
     except ImportError:
         pass
 
-    # evidently newer presets path
+    # evidently 0.6+ presets path
     try:
         from evidently import Report
         from evidently.presets import DataDriftPreset
-        log.info("Loaded evidently via evidently / evidently.presets")
+        log.info("Loaded evidently via evidently / evidently.presets (0.6+)")
         return Report, DataDriftPreset
     except ImportError:
+        pass
+
+    import subprocess, sys
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "show", "evidently"],
+            capture_output=True, text=True
+        )
+        log.error("evidently pip show:\n%s", result.stdout or result.stderr)
+    except Exception:
         pass
 
     raise ImportError(
         "Could not import evidently Report/DataDriftPreset. "
-        "Check that evidently is installed in the Docker image."
+        "Check that evidently==0.4.33 is installed in the Docker image. "
+        "Run: pip show evidently  inside the container to verify."
     )
+
 
 
 def run_drift_detection(
@@ -191,8 +203,10 @@ def run_drift_detection(
 
     except Exception as exc:
         tb = traceback.format_exc()
+        # print() goes to stdout → Cloud Logging; log.error() does not in Cloud Run
+        print(f"DRIFT_DETECTION_ERROR: {exc}")
+        print(f"DRIFT_DETECTION_TRACEBACK:\n{tb}")
         log.error("drift_detection FAILED: %s\n%s", exc, tb)
-        # Write error to report file so retrain_trigger can still read it
         error_output = {
             "metadata": {"features_path": features_path, "generated_at": pd.Timestamp.now().isoformat()},
             "summary": {"drift_detected": False, "error": str(exc)},
