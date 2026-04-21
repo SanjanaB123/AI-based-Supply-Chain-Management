@@ -18,10 +18,8 @@ import traceback
 from pathlib import Path
 from typing import Tuple
 
-import pandas as pd
-
 # BOOTSTRAP: Immediate stdout print to verify script was called and loaded
-print("BOOTSTRAP: drift_detection.py script loaded correctly.")
+print("BOOTSTRAP: drift_detection.py module initial load.")
 
 log = logging.getLogger(__name__)
 
@@ -115,10 +113,11 @@ def run_drift_detection(
 ) -> Tuple[str, float, bool]:
     """
     Run Evidently AI drift detection on features.parquet.
-
-    Returns:
-        (report_path, drift_score, drift_detected)
     """
+    import pandas as pd
+    from typing import Tuple
+    import json
+    import traceback
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
     report_file = out_path / "drift_report.json"

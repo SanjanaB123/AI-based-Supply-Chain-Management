@@ -1,50 +1,44 @@
 """
 data_pipeline.py
-Airflow DAG: Extract → Transform → Validate → Version → Load
+Airflow 3 DAG: Extract → Transform → Validate → Version → Load
 
-All task logic lives in scripts/. This file only wires the DAG together.
+Using TaskFlow API (@task) for improved stability and memory efficiency on Cloud Run.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-import pymongo
-import pandas as pd
-
 
 import pendulum
-from airflow.sdk import dag
-from airflow.operators.python import PythonOperator
+from airflow.sdk import dag, task
 from airflow.providers.smtp.operators.smtp import EmailOperator
 from airflow.exceptions import AirflowException, AirflowSkipException
 
 sys.path.insert(0, "/opt/airflow")
-from scripts.extract import extract
-from scripts.upload_to_gcp import upload_to_gcs
-from scripts.validate import generate_schema_and_stats
 
 log = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
-import yaml
-PARAMS_PATH = Path(os.getenv("PARAMS_PATH", "params.yaml"))
-params      = yaml.safe_load(open(PARAMS_PATH)) if PARAMS_PATH.exists() else {}
+def _get_params():
+    import yaml
+    PARAMS_PATH = Path(os.getenv("PARAMS_PATH", "/opt/airflow/params.yaml"))
+    return yaml.safe_load(open(PARAMS_PATH)) if PARAMS_PATH.exists() else {}
 
-HORIZON    = int(os.getenv("HORIZON", params.get("horizon", 1)))
+params = _get_params()
+HORIZON = int(os.getenv("HORIZON", params.get("horizon", 1)))
 ANOMALY_THRESHOLDS = params.get("anomaly_thresholds", {
-    "z_score":       5.0,
-    "iqr":           3.0,
-    "missingness":   0.02,
+    "z_score": 5.0,
+    "iqr": 3.0,
+    "missingness": 0.02,
     "date_gap_days": 1,
 })
 
 OUTPUT_BASE_PATH = Path(os.getenv("OUTPUT_BASE_PATH", params.get("output_base_path", "/opt/airflow/data")))
-FEAT_DIR         = OUTPUT_BASE_PATH / "features"
+FEAT_DIR = OUTPUT_BASE_PATH / "features"
 
 EMAIL_RECIPIENTS = os.getenv("EMAIL_RECIPIENTS", "admin@example.com").split(",")
 GCS_BUCKET_NAME  = os.getenv("GCS_BUCKET_NAME", "supply-chain-pipeline")
@@ -55,17 +49,29 @@ MONGO_COLLECTION      = "retail_store_inventory"
 MONGO_SNAP_COLLECTION = "inventory_snapshot"
 
 
-# ── Task functions ────────────────────────────────────────────────────────────
+# ── Tasks ─────────────────────────────────────────────────────────────────────
 
-def transform(raw_path: str, snapshot_path: str, horizon: int = 1, **context) -> str:
+@task
+def extract_task():
+    from scripts.extract import extract
+    return extract(
+        uri=MONGO_URI,
+        db_name=MONGO_DB,
+        collection_name=MONGO_COLLECTION,
+        snap_collection_name=MONGO_SNAP_COLLECTION,
+    )
+
+@task
+def transform_task(extract_results: dict):
     from scripts.transform import transform as run_fe, select_final_cols
+    import pandas as pd
 
-    raw_path      = str(raw_path).strip('"').strip("'")
-    snapshot_path = str(snapshot_path).strip('"').strip("'")
+    raw_path      = str(extract_results.get("raw_path")).strip('"').strip("'")
+    snapshot_path = str(extract_results.get("snapshot_path")).strip('"').strip("'")
 
     df      = pd.read_parquet(raw_path)
     snap    = pd.read_parquet(snapshot_path)
-    df_feat = select_final_cols(run_fe(df, snap, horizon=horizon))
+    df_feat = select_final_cols(run_fe(df, snap, horizon=HORIZON))
 
     log.info("Feature engineering complete — %d rows, %d columns", len(df_feat), len(df_feat.columns))
 
@@ -76,7 +82,9 @@ def transform(raw_path: str, snapshot_path: str, horizon: int = 1, **context) ->
     return str(out_path)
 
 
-def generate_schema_stats(features_path: str, **context) -> str:
+@task
+def generate_schema_stats_task(features_path: str):
+    from scripts.validate import generate_schema_and_stats
     features_path = str(features_path).strip('"').strip("'")
     outputs_dir   = str(FEAT_DIR / "validation_outputs")
     result        = generate_schema_and_stats(features_path, outputs_dir)
@@ -84,13 +92,16 @@ def generate_schema_stats(features_path: str, **context) -> str:
     return result
 
 
-def validate_schema_quality(outputs_dir: str, **context) -> str:
+@task
+def validate_schema_quality_task(outputs_dir: str):
     log.info("Validating schema quality using outputs in %s", outputs_dir)
     return str(outputs_dir).strip('"').strip("'")
 
 
-def detect_anomalies(features_path: str, **context) -> str:
+@task
+def detect_anomalies_task(features_path: str):
     from scripts.anomaly import generate_anomaly_report, check_anomaly_thresholds
+    import json
 
     features_path = str(features_path).strip('"').strip("'")
     outputs_dir   = str(FEAT_DIR / "anomaly_outputs")
@@ -115,7 +126,8 @@ def detect_anomalies(features_path: str, **context) -> str:
     return report_path
 
 
-def bias_slicing_report(features_path: str, **context) -> str:
+@task
+def bias_slicing_report_task(features_path: str):
     from scripts.bias import generate_bias_report
 
     features_path = str(features_path).strip('"').strip("'")
@@ -131,8 +143,9 @@ def bias_slicing_report(features_path: str, **context) -> str:
     return report_path
 
 
-def detect_drift(features_path: str, **context) -> str:
-    print("BOOTSTRAP: detect_drift task function called.")
+@task(retries=2, retry_delay=timedelta(seconds=30))
+def drift_detect_task(features_path: str):
+    print("BOOTSTRAP: detect_drift @task invoked.")
     from scripts.drift_detection import run_drift_detection
     import traceback
 
@@ -147,12 +160,13 @@ def detect_drift(features_path: str, **context) -> str:
         log.info("Drift detection complete — score=%.3f, detected=%s", drift_score, drift_detected)
         return report_path
     except Exception as e:
-        print(f"CRITICAL_TASK_ERROR (detect_drift): {e}")
+        print(f"CRITICAL_TASK_ERROR (drift_detect): {e}")
         traceback.print_exc()
         raise
 
 
-def check_model_decay(**context) -> bool:
+@task(retries=0)
+def check_model_decay_task():
     from scripts.check_model_decay import check_model_decay as _check
 
     output_dir = str(FEAT_DIR / "decay_outputs")
@@ -160,11 +174,11 @@ def check_model_decay(**context) -> bool:
     log.info("Model decay check complete — decay_detected=%s, report=%s", decay_detected, report_path)
     if not decay_detected:
         raise AirflowSkipException("Model MAE within threshold — retraining not required.")
-    # Push report path via XCom so email can reference it
     return report_path
 
 
-def trigger_retrain_on_drift(drift_report_path: str, **context) -> bool:
+@task(trigger_rule="one_success", retries=0)
+def retrain_trigger_task(drift_report_path: str):
     from scripts.trigger_retraining import trigger_retraining_if_drift
 
     drift_report_path = str(drift_report_path).strip('"').strip("'")
@@ -175,8 +189,11 @@ def trigger_retrain_on_drift(drift_report_path: str, **context) -> bool:
     return triggered
 
 
-def version_with_dvc(features_path: str, **context) -> str:
+@task
+def version_with_dvc_task(features_path: str):
     import subprocess
+    from scripts.upload_to_gcp import upload_to_gcs # verify helper import
+
     features_path = str(features_path).strip('"').strip("'")
     dvc_root      = Path("/opt/airflow")
     dvc_config    = dvc_root / ".dvc" / "config"
@@ -184,245 +201,116 @@ def version_with_dvc(features_path: str, **context) -> str:
     github_token  = os.getenv("GITHUB_TOKEN", "").strip()
     github_repo   = os.getenv("GITHUB_REPO", "SanjanaB123/AI-based-Supply-Chain-Management").strip()
 
-    log.info("=== version_with_dvc START ===")
-    log.info("features_path=%s, bucket=%s, repo=%s, token_set=%s",
-             features_path, bucket_name, github_repo, bool(github_token))
-    log.info("features file exists: %s", Path(features_path).exists())
-    log.info("dvc config exists: %s", dvc_config.exists())
-
     def run_cmd(cmd: list[str], env_extra: dict = None) -> str:
-        log.info("Running command: %s", ' '.join(cmd))
         env = os.environ.copy()
         env["PATH"] = "/home/airflow/.local/bin:/usr/local/bin:/usr/bin:/bin"
         if env_extra:
             env.update(env_extra)
         result = subprocess.run(cmd, cwd=str(dvc_root), text=True, capture_output=True, env=env)
         if result.returncode != 0:
-            log.error("Command FAILED: %s\nReturn code: %d\nSTDOUT:\n%s\nSTDERR:\n%s",
-                      ' '.join(cmd), result.returncode, result.stdout, result.stderr)
-            raise AirflowException(
-                f"Command failed: {' '.join(cmd)}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-            )
-        log.info("Command succeeded: %s", ' '.join(cmd))
+            raise AirflowException(f"DVC Command failed: {' '.join(cmd)}\nstderr: {result.stderr}")
         return result.stdout.strip()
 
     if not dvc_config.exists():
-        init_cmd = ["dvc", "init", "--no-scm"]
-        if (dvc_root / ".dvc").exists():
-            init_cmd.append("-f")
+        init_cmd = ["dvc", "init", "--no-scm", "-f"]
         run_cmd(init_cmd)
 
     run_cmd(["dvc", "add", features_path])
 
-    remotes = run_cmd(["dvc", "remote", "list"])
-    if not remotes and bucket_name:
-        run_cmd(["dvc", "remote", "add", "-d", "storage", f"gs://{bucket_name}/dvc"])
-        remotes = run_cmd(["dvc", "remote", "list"])
-
-    if remotes:
+    if bucket_name:
+        run_cmd(["dvc", "remote", "add", "-d", "storage", f"gs://{bucket_name}/dvc", "-f"])
         run_cmd(["dvc", "push"])
-        log.info("DVC: tracked and pushed %s", features_path)
-    else:
-        log.warning("DVC remote not configured — tracked locally only.")
 
-    if not github_token:
-        log.warning("GITHUB_TOKEN not set — skipping GitHub push, Actions will NOT trigger.")
-        return features_path
-
-    dvc_file      = features_path + ".dvc"
-    gitignore     = str(Path(features_path).parent / ".gitignore")
-    commit_msg    = f"Update DVC pointer: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
-    files_to_push = [dvc_file]
-    if Path(gitignore).exists():
-        files_to_push.append(gitignore)
-
-    run_cmd(
-        ["python3", "/opt/airflow/scripts/github_push.py", "push", commit_msg] + files_to_push,
-        env_extra={"GITHUB_TOKEN": github_token, "GITHUB_REPO": github_repo},
-    )
-    log.info("GitHub push complete — Actions workflow triggered.")
+    if github_token:
+        dvc_file = features_path + ".dvc"
+        commit_msg = f"Update DVC pointer: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
+        run_cmd(
+            ["python3", "/opt/airflow/scripts/github_push.py", "push", commit_msg, dvc_file],
+            env_extra={"GITHUB_TOKEN": github_token, "GITHUB_REPO": github_repo},
+        )
     return features_path
 
 
-def load(features_path: str, bucket_name: str = GCS_BUCKET_NAME, **context) -> None:
+@task
+def load_task(features_path: str):
+    from scripts.upload_to_gcp import upload_to_gcs
+    import pandas as pd
     features_path = str(features_path).strip('"').strip("'")
     
-    # Generate a prefix based on execution date for organized storage
-    exec_date = context.get('ds', pd.Timestamp.now().strftime('%Y-%m-%d'))
+    exec_date = pd.Timestamp.now().strftime('%Y-%m-%d')
     prefix = f"monitoring/{exec_date}"
 
-    # 1. Upload features (Main artifact)
-    log.info("Uploading %s → gs://%s/features/features.parquet", features_path, bucket_name)
-    upload_to_gcs(file_path=features_path, bucket_name=bucket_name, destination_blob_name="features/features.parquet")
+    # Upload main artifact
+    upload_to_gcs(file_path=features_path, bucket_name=GCS_BUCKET_NAME, destination_blob_name="features/features.parquet")
 
-    # 2. Upload Drift Report (if exists)
-    drift_report = str(FEAT_DIR / "drift_outputs" / "drift_report.json")
-    if os.path.exists(drift_report):
-        log.info("Uploading drift report → gs://%s/%s/drift_report.json", bucket_name, prefix)
-        upload_to_gcs(file_path=drift_report, bucket_name=bucket_name, destination_blob_name=f"{prefix}/drift_report.json")
-    
-    # 3. Upload Decay Report (if exists)
-    decay_report = str(FEAT_DIR / "decay_outputs" / "decay_report.json")
-    if os.path.exists(decay_report):
-        log.info("Uploading decay report → gs://%s/%s/decay_report.json", bucket_name, prefix)
-        upload_to_gcs(file_path=decay_report, bucket_name=bucket_name, destination_blob_name=f"{prefix}/decay_report.json")
-
-    log.info("Upload task complete.")
+    # Upload reports
+    for rtype, rname in [("drift_outputs", "drift_report.json"), ("decay_outputs", "decay_report.json")]:
+        report_path = FEAT_DIR / rtype / rname
+        if report_path.exists():
+            upload_to_gcs(file_path=str(report_path), bucket_name=GCS_BUCKET_NAME, destination_blob_name=f"{prefix}/{rname}")
+    return features_path
 
 
-# ── DAG ───────────────────────────────────────────────────────────────────────
-
-default_args = {
-    "owner":            "airflow",
-    "retries":          2,
-    "retry_delay":      timedelta(minutes=5),
-    "email_on_failure": False,
-}
-
+# ── DAG Definition ────────────────────────────────────────────────────────────
 
 @dag(
     dag_id="supply_chain_pipeline",
-    description="Extract → Transform → Validate → Version → Load supply chain data",
+    description="Extract → Transform → Validate → Version → Load via TaskFlow API",
     start_date=datetime(2026, 2, 21, tzinfo=pendulum.timezone("America/New_York")),
     schedule="0 12 * * *",
     catchup=False,
-    default_args=default_args,
-    tags=["supply-chain", "etl", "ml"],
+    default_args={
+        "owner": "airflow",
+        "email_on_failure": False,
+    },
+    tags=["supply-chain", "airflow3", "taskflow"],
 )
 def supply_chain_pipeline():
+    # 1. Pipeline execution using functional TaskFlow style
+    raw_data_info = extract_task()
+    feat_path = transform_task(raw_data_info)
 
-    extract_task = PythonOperator(
-        task_id="extract",
-        python_callable=extract,
-        op_kwargs={
-            "uri":                  MONGO_URI,
-            "db_name":              MONGO_DB,
-            "collection_name":      MONGO_COLLECTION,
-            "snap_collection_name": MONGO_SNAP_COLLECTION,
-        },
-    )
+    # 2. Parallel monitoring and validation
+    validation_dir = generate_schema_stats_task(feat_path)
+    schema_quality_path = validate_schema_quality_task(validation_dir)
+    
+    anomaly_path = detect_anomalies_task(feat_path)
+    bias_path = bias_slicing_report_task(feat_path)
+    
+    # Drift and Decay
+    drift_path = drift_detect_task(feat_path)
+    decay_path = check_model_decay_task()
 
-    transform_task = PythonOperator(
-        task_id="transform",
-        python_callable=transform,
-        op_kwargs={
-            "raw_path":      "{{ ti.xcom_pull(task_ids='extract') }}",
-            "snapshot_path": "{{ ti.xcom_pull(task_ids='extract', key='snapshot_path') }}",
-            "horizon":       HORIZON,
-        },
-    )
+    # 3. Downstream dependencies
+    # Retraining (depends on drift/decay)
+    retrain_res = retrain_trigger_task(drift_path)
+    
+    # Versioning and Loading (depends on quality/anomaly)
+    # Note: versioning and load run after basic validation
+    versioned_path = version_with_dvc_task(feat_path)
+    final_load = load_task(versioned_path)
 
-    schema_stats_task = PythonOperator(
-        task_id="generate_schema_stats",
-        python_callable=generate_schema_stats,
-        op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
-    )
-
-    validate_schema_task = PythonOperator(
-        task_id="validate_schema_quality",
-        python_callable=validate_schema_quality,
-        op_kwargs={"outputs_dir": "{{ ti.xcom_pull(task_ids='generate_schema_stats') }}"},
-    )
-
-    anomaly_detect_task = PythonOperator(
-        task_id="detect_anomalies",
-        python_callable=detect_anomalies,
-        op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
-    )
-
-    anomaly_email_alert = EmailOperator(
+    # 4. Email alerts (using traditional operators for simplicity)
+    anomaly_alert = EmailOperator(
         task_id="anomaly_email_alert",
         to=EMAIL_RECIPIENTS,
         subject="Supply Chain Pipeline - Anomaly Alert",
-        html_content="""
-        <h2>Anomaly Detection Alert</h2>
-        <p>Critical anomalies detected in the supply chain pipeline.</p>
-        <ul>
-            <li>Pipeline: {{ dag.dag_id }}</li>
-            <li>Execution Date: {{ ds }}</li>
-            <li>Anomaly Report: {{ ti.xcom_pull(task_ids='detect_anomalies') }}</li>
-        </ul>
-        <p><a href="{{ conf.get('webserver', 'base_url') }}">Airflow Dashboard</a></p>
-        """,
+        html_content=f"Anomaly Report: {anomaly_path}",
         trigger_rule="one_failed",
     )
-
-    bias_report_task = PythonOperator(
-        task_id="bias_slicing_report",
-        python_callable=bias_slicing_report,
-        op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
-    )
-
-    drift_detect_task = PythonOperator(
-        task_id="drift_detect",
-        python_callable=detect_drift,
-        op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
-    )
-
-    decay_check_task = PythonOperator(
-        task_id="check_model_decay",
-        python_callable=check_model_decay,
-        retries=0,
-    )
-
-    retrain_trigger_task = PythonOperator(
-        task_id="retrain_trigger",
-        python_callable=trigger_retrain_on_drift,
-        op_kwargs={"drift_report_path": "{{ ti.xcom_pull(task_ids='drift_detect') }}"},
-        retries=0,
-        trigger_rule="one_success",
-    )
-
-    retrain_email_alert = EmailOperator(
+    
+    retrain_alert = EmailOperator(
         task_id="retrain_email_alert",
         to=EMAIL_RECIPIENTS,
         subject="Supply Chain Pipeline - Retraining Triggered",
-        html_content="""
-        <h2>Model Retraining Triggered</h2>
-        <p>Data drift detected — model retraining has been triggered automatically.</p>
-        <ul>
-            <li>Pipeline: {{ dag.dag_id }}</li>
-            <li>Execution Date: {{ ds }}</li>
-            <li>Drift Report: {{ ti.xcom_pull(task_ids='drift_detect') }}</li>
-        </ul>
-        <p>The ML pipeline has been dispatched on GitHub Actions to retrain and promote a new model.</p>
-        """,
+        html_content=f"Retraining triggered on drift. Report: {drift_path}",
         trigger_rule="all_success",
     )
 
-    dvc_version_task = PythonOperator(
-        task_id="version_with_dvc",
-        python_callable=version_with_dvc,
-        op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
-    )
+    # Cross-orchestration for alerts
+    anomaly_path >> anomaly_alert
+    retrain_res >> retrain_alert
+    [schema_quality_path, anomaly_path] >> versioned_path >> final_load
 
-    load_task = PythonOperator(
-        task_id="load",
-        python_callable=load,
-        op_kwargs={
-            "features_path": "{{ ti.xcom_pull(task_ids='transform') }}",
-            "bucket_name":   GCS_BUCKET_NAME,
-        },
-    )
-
-    # ── Task dependency graph ─────────────────────────────────────────────────
-    #
-    #   extract
-    #     └── transform
-    #           ├── schema_stats ──┐
-    #           ├── anomaly ───────┴── validate_schema ── dvc_version ── load
-    #           │       └── email_alert (on failure only)
-    #           ├── bias_report
-    #           ├── drift_detect ──┐
-    #           │                  ├── retrain_trigger ── retrain_email_alert
-    #           └── check_model_decay ┘  (fires if either detects an issue)
-    #
-    extract_task >> transform_task
-    transform_task >> [schema_stats_task, anomaly_detect_task, bias_report_task, drift_detect_task, decay_check_task]
-    [schema_stats_task, anomaly_detect_task] >> validate_schema_task
-    validate_schema_task >> dvc_version_task >> load_task
-    anomaly_detect_task >> anomaly_email_alert
-    [drift_detect_task, decay_check_task] >> retrain_trigger_task >> retrain_email_alert
-
-
+# Instantiate DAG
 dag = supply_chain_pipeline()
