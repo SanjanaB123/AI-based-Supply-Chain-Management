@@ -133,16 +133,22 @@ def bias_slicing_report(features_path: str, **context) -> str:
 
 def detect_drift(features_path: str, **context) -> str:
     from scripts.drift_detection import run_drift_detection
+    import traceback
 
-    features_path   = str(features_path).strip('"').strip("'")
-    drift_threshold = float(os.getenv("DRIFT_THRESHOLD", "0.3"))
-    report_path, drift_score, drift_detected = run_drift_detection(
-        features_path=features_path,
-        output_dir=str(FEAT_DIR / "drift_outputs"),
-        drift_threshold=drift_threshold,
-    )
-    log.info("Drift detection complete — score=%.3f, detected=%s", drift_score, drift_detected)
-    return report_path
+    try:
+        features_path   = str(features_path).strip('"').strip("'")
+        drift_threshold = float(os.getenv("DRIFT_THRESHOLD", "0.3"))
+        report_path, drift_score, drift_detected = run_drift_detection(
+            features_path=features_path,
+            output_dir=str(FEAT_DIR / "drift_outputs"),
+            drift_threshold=drift_threshold,
+        )
+        log.info("Drift detection complete — score=%.3f, detected=%s", drift_score, drift_detected)
+        return report_path
+    except Exception as e:
+        print(f"CRITICAL_TASK_ERROR (detect_drift): {e}")
+        traceback.print_exc()
+        raise
 
 
 def check_model_decay(**context) -> bool:

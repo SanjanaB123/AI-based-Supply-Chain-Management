@@ -122,8 +122,20 @@ def run_drift_detection(
 
     try:
         log.info("Loading features from %s", features_path)
-        df = pd.read_parquet(features_path)
-        log.info("Loaded %d rows, %d columns. Columns: %s", len(df), len(df.columns), list(df.columns))
+        
+        # Optimization: Only read required columns to save memory
+        load_cols = NUMERIC_FEATURE_COLS + ["as_of_date"]
+        try:
+            df = pd.read_parquet(features_path, columns=load_cols)
+            log.info("Memory optimization: Read only %d relevant columns", len(load_cols))
+        except Exception as e:
+            log.warning("Filtered read failed, falling back to full read: %s", e)
+            df = pd.read_parquet(features_path)
+        
+        # Diagnostic: Log memory usage
+        mem_mb = df.memory_usage(deep=True).sum() / (1024 * 1024)
+        print(f"DRIFT_DETECTION_MEMORY_USAGE: {mem_mb:.2f} MB")
+        log.info("Loaded %d rows. Memory depth: %.2f MB", len(df), mem_mb)
 
         available_cols = [c for c in NUMERIC_FEATURE_COLS if c in df.columns]
         log.info("Matched feature columns: %s", available_cols)
