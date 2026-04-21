@@ -10,3 +10,4 @@ PyYAML==6.0.3
 python-dotenv==1.2.1
 scipy
 evidently==0.4.33
+mlflow>=2.10
