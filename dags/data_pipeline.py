@@ -15,7 +15,7 @@ from airflow.sdk import dag
 from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator
 from airflow.providers.smtp.operators.smtp import EmailOperator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 import subprocess
 
 log = logging.getLogger(__name__)
@@ -355,8 +355,11 @@ def supply_chain_pipeline():
         from trigger_retraining import trigger_retraining_if_drift
 
         triggered = trigger_retraining_if_drift(drift_report_path)
-        log.info("Retraining triggered: %s", triggered)
+        if not triggered:
+            raise AirflowSkipException("No drift detected — retraining not required.")
+        log.info("Retraining triggered successfully.")
         return triggered
+
 
 
     schema_stats_task = PythonOperator(
@@ -438,7 +441,7 @@ def supply_chain_pipeline():
         </ul>
         <p>The ML pipeline (<code>ml_pipeline.yml</code>) has been dispatched on GitHub Actions to retrain and promote a new model if it performs better.</p>
         """,
-        trigger_rule="none_failed_min_one_success",
+        trigger_rule="all_success",
     )
 
     # Parallelize: extract -> transform -> [schema_stats, anomaly_detect, bias_report, drift_detect]
