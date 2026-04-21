@@ -20,6 +20,9 @@ from typing import Tuple
 
 import pandas as pd
 
+# BOOTSTRAP: Immediate stdout print to verify script was called and loaded
+print("BOOTSTRAP: drift_detection.py script loaded correctly.")
+
 log = logging.getLogger(__name__)
 
 DEFAULT_DRIFT_THRESHOLD = float(os.getenv("DRIFT_THRESHOLD", "0.3"))

@@ -132,6 +132,7 @@ def bias_slicing_report(features_path: str, **context) -> str:
 
 
 def detect_drift(features_path: str, **context) -> str:
+    print("BOOTSTRAP: detect_drift task function called.")
     from scripts.drift_detection import run_drift_detection
     import traceback
 

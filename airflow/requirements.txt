@@ -9,5 +9,8 @@ google-cloud-secret-manager
 PyYAML==6.0.3
 python-dotenv==1.2.1
 scipy==1.17.1
+numpy==1.26.4
+scikit-learn==1.8.0
+matplotlib==3.9.2
 evidently>=0.4
 mlflow==2.22.0
