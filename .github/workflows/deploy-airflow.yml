@@ -5,6 +5,7 @@ on:
     branches: [main, rohit]
     paths:
       - "airflow/**"
+      - "dags/**"
       - "terraform/airflow/**"
       - "terraform/modules/**"
       - ".github/workflows/deploy-airflow.yml"
