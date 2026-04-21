@@ -144,18 +144,6 @@ def detect_drift(features_path: str, **context) -> str:
     return report_path
 
 
-def check_model_decay(**context) -> bool:
-    from scripts.check_model_decay import check_model_decay as _check
-
-    output_dir = str(FEAT_DIR / "decay_outputs")
-    report_path, decay_detected = _check(output_dir=output_dir)
-    log.info("Model decay check complete — decay_detected=%s, report=%s", decay_detected, report_path)
-    if not decay_detected:
-        raise AirflowSkipException("Model MAE within threshold — retraining not required.")
-    # Push report path via XCom so email can reference it
-    return report_path
-
-
 def trigger_retrain_on_drift(drift_report_path: str, **context) -> bool:
     from scripts.trigger_retraining import trigger_retraining_if_drift
 
@@ -333,18 +321,11 @@ def supply_chain_pipeline():
         op_kwargs={"features_path": "{{ ti.xcom_pull(task_ids='transform') }}"},
     )
 
-    decay_check_task = PythonOperator(
-        task_id="check_model_decay",
-        python_callable=check_model_decay,
-        retries=0,
-    )
-
     retrain_trigger_task = PythonOperator(
         task_id="retrain_trigger",
         python_callable=trigger_retrain_on_drift,
         op_kwargs={"drift_report_path": "{{ ti.xcom_pull(task_ids='drift_detect') }}"},
         retries=0,
-        trigger_rule="one_success",
     )
 
     retrain_email_alert = EmailOperator(
@@ -387,16 +368,15 @@ def supply_chain_pipeline():
     #           ├── anomaly ───────┴── validate_schema ── dvc_version ── load
     #           │       └── email_alert (on failure only)
     #           ├── bias_report
-    #           ├── drift_detect ──┐
-    #           │                  ├── retrain_trigger ── retrain_email_alert
-    #           └── check_model_decay ┘  (fires if either detects an issue)
+    #           └── drift_detect ── retrain_trigger ── retrain_email_alert
+    #                                  (skips if no drift)
     #
     extract_task >> transform_task
-    transform_task >> [schema_stats_task, anomaly_detect_task, bias_report_task, drift_detect_task, decay_check_task]
+    transform_task >> [schema_stats_task, anomaly_detect_task, bias_report_task, drift_detect_task]
     [schema_stats_task, anomaly_detect_task] >> validate_schema_task
     validate_schema_task >> dvc_version_task >> load_task
     anomaly_detect_task >> anomaly_email_alert
-    [drift_detect_task, decay_check_task] >> retrain_trigger_task >> retrain_email_alert
+    drift_detect_task >> retrain_trigger_task >> retrain_email_alert
 
 
 dag = supply_chain_pipeline()
