@@ -57,20 +57,11 @@ def _split_reference_current(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFra
 
 def _try_import_evidently():
     """Try multiple evidently import paths across versions."""
-    # evidently 0.4.x (pinned version) — primary path
+    # evidently 0.4.x - 0.5.x — primary path
     try:
         from evidently.report import Report
         from evidently.metric_preset import DataDriftPreset
-        log.info("Loaded evidently via evidently.report / evidently.metric_preset (0.4.x)")
-        return Report, DataDriftPreset
-    except ImportError:
-        pass
-
-    # evidently 0.5.x alternate
-    try:
-        from evidently import Report
-        from evidently.metric_preset import DataDriftPreset
-        log.info("Loaded evidently via evidently / evidently.metric_preset (0.5.x)")
+        log.info("Loaded evidently via evidently.report / evidently.metric_preset (0.4/0.5)")
         return Report, DataDriftPreset
     except ImportError:
         pass
@@ -90,14 +81,13 @@ def _try_import_evidently():
             [sys.executable, "-m", "pip", "show", "evidently"],
             capture_output=True, text=True
         )
-        log.error("evidently pip show:\n%s", result.stdout or result.stderr)
+        log.error("evidently not found. pip show:\n%s", result.stdout or result.stderr)
     except Exception:
         pass
 
     raise ImportError(
         "Could not import evidently Report/DataDriftPreset. "
-        "Check that evidently==0.4.33 is installed in the Docker image. "
-        "Run: pip show evidently  inside the container to verify."
+        "Check that evidently is installed in the Airflow environment."
     )
 
 
@@ -146,14 +136,32 @@ def run_drift_detection(
         log.info("Importing evidently...")
         Report, DataDriftPreset = _try_import_evidently()
 
-        log.info("Running Evidently DataDriftPreset on %d features", len(available_cols))
-        report = Report(metrics=[DataDriftPreset()])
+        log.info("Instantiating Evidently Report for %d features", len(available_cols))
+        # Handle both Metric and Preset style instantiation (defensive)
+        try:
+            report = Report(metrics=[DataDriftPreset()])
+            log.info("Report initialized with metrics=[DataDriftPreset()]")
+        except Exception:
+            report = Report(presets=[DataDriftPreset()])
+            log.info("Report initialized with presets=[DataDriftPreset()]")
+
+        log.info("Running report.run()...")
         report.run(reference_data=ref_features, current_data=cur_features)
 
         report_dict = report.as_dict()
-        log.info("Evidently report generated successfully")
+        log.info("Evidently report generated successfully. Parsing results...")
 
-        drift_results = report_dict.get("metrics", [{}])[0].get("result", {})
+        # Robust result extraction (structure changed in 0.6+)
+        drift_results = {}
+        for metric in report_dict.get("metrics", []):
+            if "DataDriftPreset" in metric.get("metric", "") or "DatasetDriftMetric" in metric.get("metric", ""):
+                drift_results = metric.get("result", {})
+                break
+        
+        # Fallback to direct check if loop didn't find it
+        if not drift_results:
+             drift_results = report_dict.get("metrics", [{}])[0].get("result", {})
+
         share_drifted = float(drift_results.get("share_of_drifted_columns", 0.0))
         n_drifted = drift_results.get("number_of_drifted_columns", 0)
         n_total = drift_results.get("number_of_columns", len(available_cols))

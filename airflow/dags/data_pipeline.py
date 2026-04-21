@@ -238,10 +238,28 @@ def version_with_dvc(features_path: str, **context) -> str:
 
 def load(features_path: str, bucket_name: str = GCS_BUCKET_NAME, **context) -> None:
     features_path = str(features_path).strip('"').strip("'")
-    destination   = "features/features.parquet"
-    log.info("Uploading %s → gs://%s/%s", features_path, bucket_name, destination)
-    upload_to_gcs(file_path=features_path, bucket_name=bucket_name, destination_blob_name=destination)
-    log.info("Upload complete: gs://%s/%s", bucket_name, destination)
+    
+    # Generate a prefix based on execution date for organized storage
+    exec_date = context.get('ds', pd.Timestamp.now().strftime('%Y-%m-%d'))
+    prefix = f"monitoring/{exec_date}"
+
+    # 1. Upload features (Main artifact)
+    log.info("Uploading %s → gs://%s/features/features.parquet", features_path, bucket_name)
+    upload_to_gcs(file_path=features_path, bucket_name=bucket_name, destination_blob_name="features/features.parquet")
+
+    # 2. Upload Drift Report (if exists)
+    drift_report = str(FEAT_DIR / "drift_outputs" / "drift_report.json")
+    if os.path.exists(drift_report):
+        log.info("Uploading drift report → gs://%s/%s/drift_report.json", bucket_name, prefix)
+        upload_to_gcs(file_path=drift_report, bucket_name=bucket_name, destination_blob_name=f"{prefix}/drift_report.json")
+    
+    # 3. Upload Decay Report (if exists)
+    decay_report = str(FEAT_DIR / "decay_outputs" / "decay_report.json")
+    if os.path.exists(decay_report):
+        log.info("Uploading decay report → gs://%s/%s/decay_report.json", bucket_name, prefix)
+        upload_to_gcs(file_path=decay_report, bucket_name=bucket_name, destination_blob_name=f"{prefix}/decay_report.json")
+
+    log.info("Upload task complete.")
 
 
 # ── DAG ───────────────────────────────────────────────────────────────────────

@@ -57,6 +57,20 @@ def check_model_decay(output_dir: str) -> tuple[str, bool]:
     champion_version = None
     current_mae = None
 
+    # Diagnostic logging: list all versions for transparency
+    log.info("Checking MLflow model versions...")
+    for model_name in MODEL_NAMES:
+        try:
+            versions = client.search_model_versions(f"name='{model_name}'")
+            if versions:
+                log.info("Model '%s' versions found:", model_name)
+                for v in versions:
+                    log.info("  - v%s: stage=%s, run_id=%s", v.version, v.current_stage, v.run_id)
+            else:
+                log.info("Model '%s' has no registered versions.", model_name)
+        except Exception as e:
+            log.warning("Could not search versions for '%s': %s", model_name, e)
+
     # Find whichever model has a Production version
     for model_name in MODEL_NAMES:
         try:
@@ -64,9 +78,10 @@ def check_model_decay(output_dir: str) -> tuple[str, bool]:
             if prod_versions:
                 champion_name = model_name
                 champion_version = prod_versions[0]
+                log.info("Champion detected: %s (version %s in Production)", champion_name, champion_version.version)
                 break
         except Exception as exc:
-            log.warning("Could not query model '%s': %s", model_name, exc)
+            log.warning("Could not query Production stage for '%s': %s", model_name, exc)
 
     if champion_version is None:
         log.warning("No Production model found in MLflow — skipping decay check.")
