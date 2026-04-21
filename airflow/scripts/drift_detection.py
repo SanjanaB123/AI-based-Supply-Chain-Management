@@ -42,15 +42,28 @@ def _split_reference_current(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFra
     df = df.copy()
     df["as_of_date"] = pd.to_datetime(df["as_of_date"])
     df_sorted = df.sort_values("as_of_date")
-    cutoff_idx = int(len(df_sorted) * 0.8)
+    
+    n = len(df_sorted)
+    if n < 2:
+        # Cannot split 1 row into 2 sets
+        return df_sorted, pd.DataFrame(columns=df_sorted.columns)
+
+    cutoff_idx = int(n * 0.8)
+    
+    # Ensure at least one row in current if n >= 2
+    if cutoff_idx == n:
+        cutoff_idx = n - 1
+    elif cutoff_idx == 0:
+        cutoff_idx = 1
+
     reference = df_sorted.iloc[:cutoff_idx]
     current = df_sorted.iloc[cutoff_idx:]
     log.info(
         "Reference rows: %d (up to %s), Current rows: %d (from %s)",
         len(reference),
-        reference["as_of_date"].max().date(),
+        reference["as_of_date"].max().date() if not reference.empty else "N/A",
         len(current),
-        current["as_of_date"].min().date(),
+        current["as_of_date"].min().date() if not current.empty else "N/A",
     )
     return reference, current
 
@@ -132,6 +145,11 @@ def run_drift_detection(
         if len(cur_features) > MAX_SAMPLE_ROWS:
             cur_features = cur_features.sample(MAX_SAMPLE_ROWS, random_state=42)
             log.info("Sampled current to %d rows", MAX_SAMPLE_ROWS)
+
+        if ref_features.empty or cur_features.empty:
+            log.warning("Reference or Current dataset is empty after filtering — skipping drift detection.")
+            _write_no_drift_report(report_file, features_path, drift_threshold, reason="empty_dataset_split")
+            return str(report_file), 0.0, False
 
         log.info("Importing evidently...")
         Report, DataDriftPreset = _try_import_evidently()

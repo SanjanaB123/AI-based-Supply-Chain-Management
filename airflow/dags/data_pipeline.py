@@ -14,6 +14,8 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 import pymongo
+import pandas as pd
+
 
 import pendulum
 from airflow.sdk import dag
@@ -56,7 +58,6 @@ MONGO_SNAP_COLLECTION = "inventory_snapshot"
 # ── Task functions ────────────────────────────────────────────────────────────
 
 def transform(raw_path: str, snapshot_path: str, horizon: int = 1, **context) -> str:
-    import pandas as pd
     from scripts.transform import transform as run_fe, select_final_cols
 
     raw_path      = str(raw_path).strip('"').strip("'")
