@@ -1,4 +1,4 @@
-pandas==3.0.1
+pandas==2.2.3
 pymongo==4.16.0
 great-expectations==0.18.19
 apache-airflow-providers-smtp==2.4.2

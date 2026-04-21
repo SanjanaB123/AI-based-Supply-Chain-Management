@@ -13,7 +13,6 @@ import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-import pymongo
 
 import pendulum
 from airflow.sdk import dag
@@ -131,6 +130,7 @@ def bias_slicing_report(features_path: str, **context) -> str:
 
 
 def detect_drift(features_path: str, **context) -> str:
+    import pandas as pd
     from scripts.drift_detection import run_drift_detection
 
     features_path   = str(features_path).strip('"').strip("'")
@@ -237,6 +237,7 @@ def version_with_dvc(features_path: str, **context) -> str:
 
 
 def load(features_path: str, bucket_name: str = GCS_BUCKET_NAME, **context) -> None:
+    import pandas as pd
     features_path = str(features_path).strip('"').strip("'")
     destination   = "features/features.parquet"
     log.info("Uploading %s → gs://%s/%s", features_path, bucket_name, destination)
